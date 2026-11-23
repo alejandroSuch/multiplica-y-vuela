@@ -337,7 +337,7 @@ function startRound(): void {
   const heightRanks = randomOrder([0, 1, 2]);
   const playfield = root.querySelector<HTMLElement>('#playfield')!;
   playfield.classList.remove('show-feedback');
-  playfield.innerHTML = question.options.map((value, index) => balloonMarkup(value, colors[index], index)).join('')
+  playfield.innerHTML = `<div class="balloon-layer">${question.options.map((value, index) => balloonMarkup(value, colors[index], index)).join('')}</div>`
     + '<div class="feedback-layer" id="feedback-layer" aria-live="polite"></div>';
   game.balloons = question.options.map((value, index) => ({
     element: playfield.querySelector<HTMLButtonElement>(`[data-balloon="${index}"]`)!,

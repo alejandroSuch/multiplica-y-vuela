@@ -5,6 +5,7 @@ import {
   type Difficulty, type GameSummary, type Question,
 } from './game';
 import { loadData, recordGame, saveData, type SavedData } from './storage';
+import { shouldAskToRotate } from './orientation';
 
 type Screen = 'home' | 'game' | 'scores' | 'summary';
 type RoundPhase = 'active' | 'feedback';
@@ -34,6 +35,7 @@ interface ActiveGame {
   phase: RoundPhase;
   elapsed: number;
   feedbackLeft: number;
+  requiresContinue: boolean;
   manualPause: boolean;
 }
 
@@ -49,14 +51,16 @@ const BALLOON_COLORS = Array.from({ length: 24 }, (_, index) =>
 );
 const root = document.querySelector<HTMLDivElement>('#app')!;
 const orientationOverlay = document.querySelector<HTMLDivElement>('#orientation-overlay')!;
-const orientationQuery = matchMedia('(orientation: landscape) and (pointer: coarse)');
+const orientationQuery = matchMedia('(orientation: landscape)');
+const coarsePointerQuery = matchMedia('(pointer: coarse)');
 const data: SavedData = loadData();
 let screen: Screen = 'home';
 let scoresReturn: 'home' | 'summary' = 'home';
 let game: ActiveGame | null = null;
 let lastSummary: GameSummary | null = null;
 let storageFailed = false;
-let landscape = orientationQuery.matches;
+let landscape = false;
+let orientationDismissed = false;
 let lastFrame = 0;
 let particles: Particle[] = [];
 let audioContext: AudioContext | null = null;
@@ -267,6 +271,7 @@ function startGame(): void {
     phase: 'active',
     elapsed: 0,
     feedbackLeft: 0,
+    requiresContinue: false,
     manualPause: false,
   };
   screen = 'game';
@@ -326,12 +331,14 @@ function startRound(): void {
   game.phase = 'active';
   game.elapsed = 0;
   game.feedbackLeft = 0;
+  game.requiresContinue = false;
   const question = game.question;
   const colors = chooseBalloonColors();
   const heightRanks = randomOrder([0, 1, 2]);
   const playfield = root.querySelector<HTMLElement>('#playfield')!;
   playfield.classList.remove('show-feedback');
-  playfield.innerHTML = question.options.map((value, index) => balloonMarkup(value, colors[index], index)).join('')
+  playfield.innerHTML = '<div class="escape-boundary" aria-hidden="true"><span>SALIDA</span></div>'
+    + question.options.map((value, index) => balloonMarkup(value, colors[index], index)).join('')
     + '<div class="feedback-layer" id="feedback-layer" aria-live="polite"></div>';
   game.balloons = question.options.map((value, index) => ({
     element: playfield.querySelector<HTMLButtonElement>(`[data-balloon="${index}"]`)!,
@@ -350,7 +357,7 @@ function startRound(): void {
 
 function positionBalloons(): void {
   if (!game || screen !== 'game' || game.phase !== 'active') return;
-  if (orientationQuery.matches || document.hidden) return;
+  if (landscape || document.hidden) return;
   const field = root.querySelector<HTMLElement>('#playfield');
   if (!field) return;
   const width = field.clientWidth;
@@ -363,7 +370,7 @@ function positionBalloons(): void {
     const balloonHeight = balloon.element.offsetHeight;
     const balloonWidth = balloon.element.offsetWidth;
     const y = height - balloonHeight - 8 - balloon.heightRank * spacing - game.elapsed * speed;
-    if (y + balloonHeight < 0) {
+    if (y + balloonHeight <= 0) {
       balloon.escaped = true;
       balloon.element.hidden = true;
       continue;
@@ -385,6 +392,7 @@ function finishRound(kind: FeedbackKind, chosen?: Balloon): void {
   if (!game || game.phase !== 'active' || !game.question) return;
   game.phase = 'feedback';
   game.feedbackLeft = 1.65;
+  game.requiresContinue = kind !== 'correct';
   const question = game.question;
   let message: string;
   let detail: string;
@@ -412,9 +420,21 @@ function finishRound(kind: FeedbackKind, chosen?: Balloon): void {
     if (balloon !== chosen) balloon.element.classList.add('fade-away');
   });
   const layer = root.querySelector<HTMLElement>('#feedback-layer')!;
-  layer.innerHTML = `<div class="feedback-card ${kind}">${nubi('nubi-feedback')}<div><strong>${message}</strong><span>${detail}</span></div></div>`;
+  layer.classList.toggle('awaiting', game.requiresContinue);
+  const continueButton = game.requiresContinue
+    ? `<button class="secondary-button feedback-continue" type="button">${game.lives <= 0 ? 'Ver resultado' : 'Vale, seguir'}</button>`
+    : '';
+  layer.innerHTML = `<div class="feedback-card ${kind}"><div class="feedback-main">${nubi('nubi-feedback')}<div class="feedback-copy"><strong>${message}</strong><span>${detail}</span></div></div>${continueButton}</div>`;
+  layer.querySelector<HTMLButtonElement>('.feedback-continue')?.addEventListener('click', continueAfterFeedback);
   root.querySelector<HTMLElement>('#playfield')!.classList.add('show-feedback');
   updateHud();
+}
+
+function continueAfterFeedback(): void {
+  if (!game || game.phase !== 'feedback' || !game.requiresContinue || isPaused()) return;
+  playTap();
+  if (game.lives <= 0) endGame();
+  else startRound();
 }
 
 function endGame(): void {
@@ -486,7 +506,22 @@ function isPaused(): boolean {
 }
 
 function updateOrientation(): void {
-  landscape = orientationQuery.matches;
+  const active = document.activeElement;
+  const textInputFocused = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+  const signals = {
+    coarsePointer: coarsePointerQuery.matches,
+    dismissed: false,
+    textInputFocused,
+    legacyAngle: typeof window.orientation === 'number' ? window.orientation : undefined,
+    screenType: window.screen.orientation?.type,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    viewportWidth: innerWidth,
+    viewportHeight: innerHeight,
+  };
+  const physicallyLandscape = shouldAskToRotate(signals);
+  if (!physicallyLandscape && !textInputFocused) orientationDismissed = false;
+  landscape = shouldAskToRotate({ ...signals, dismissed: orientationDismissed });
   orientationOverlay.classList.toggle('is-visible', landscape);
   lastFrame = 0;
   if (landscape) applause.pause();
@@ -607,7 +642,7 @@ function frame(timestamp: number): void {
     if (game.phase === 'active') {
       game.elapsed += dt;
       positionBalloons();
-    } else {
+    } else if (!game.requiresContinue) {
       game.feedbackLeft -= dt;
       if (game.feedbackLeft <= 0) {
         if (game.lives <= 0) endGame();
@@ -620,11 +655,23 @@ function frame(timestamp: number): void {
 }
 
 orientationQuery.addEventListener('change', updateOrientation);
+coarsePointerQuery.addEventListener('change', updateOrientation);
+window.screen.orientation?.addEventListener('change', updateOrientation);
+window.addEventListener('orientationchange', () => {
+  updateOrientation();
+  window.setTimeout(updateOrientation, 250);
+});
+document.addEventListener('focusin', updateOrientation);
+document.addEventListener('focusout', () => window.setTimeout(updateOrientation, 0));
+document.querySelector<HTMLButtonElement>('#orientation-dismiss')!.addEventListener('click', () => {
+  orientationDismissed = true;
+  updateOrientation();
+});
 document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
   if (document.hidden) applause.pause();
 });
-window.addEventListener('resize', () => { resizeCanvas(); positionBalloons(); updateOrientation(); });
+window.addEventListener('resize', () => { resizeCanvas(); updateOrientation(); });
 resizeCanvas();
 updateOrientation();
 renderHome();

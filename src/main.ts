@@ -374,7 +374,9 @@ function positionBalloons(): void {
       balloon.element.hidden = true;
       continue;
     }
-    balloon.element.style.setProperty('--exit-opacity', String(Math.min(1, (y + balloonHeight) / 64)));
+    const fadeDistance = Math.min(96, Math.max(56, height * 0.14));
+    const visibleRatio = Math.min(1, Math.max(0, (y + balloonHeight) / (balloonHeight + fadeDistance)));
+    balloon.element.style.setProperty('--exit-opacity', String(visibleRatio ** 1.5));
     const amplitude = Math.max(0, Math.min(12, (width / 3 - balloonWidth) / 2 - 4));
     const sway = Math.sin(game.elapsed * (2 * Math.PI / 2.7) + balloon.phase) * amplitude;
     balloon.element.style.left = `${width * (balloon.lane + 0.5) / 3}px`;

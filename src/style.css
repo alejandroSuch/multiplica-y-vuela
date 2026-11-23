@@ -186,7 +186,7 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
 .question-board strong { color: #e87570; font-size: clamp(2.25rem, 7vw, 3.45rem); line-height: 1.03; text-shadow: 0 2px #f8cec8; }
 .speed-badge { position: absolute; right: -5px; bottom: -15px; padding: 4px 9px; border: 2px solid white; border-radius: 9px; background: #ffe17f; color: #775626; box-shadow: 0 2px 0 #c69b4c; font-size: .75rem; font-weight: 700; transform: rotate(5deg); }
 .playfield { position: relative; flex: 1; min-height: 175px; width: 100%; overflow: hidden; }
-.balloon { position: absolute; top: 0; width: clamp(72px, 25vw, 116px); height: calc(clamp(72px, 25vw, 116px) * 1.5); padding: 0; border: 0; background: transparent; color: #19324f; transform-origin: center center; will-change: transform; filter: drop-shadow(0 10px 7px #317a9670); }
+.balloon { position: absolute; top: 0; width: clamp(72px, 25vw, 116px); height: calc(clamp(72px, 25vw, 116px) * 1.5); padding: 0; border: 0; background: transparent; color: #19324f; opacity: var(--exit-opacity, 1); transform-origin: center center; will-change: transform, opacity; filter: drop-shadow(0 10px 7px #317a9670); }
 .balloon-art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .balloon-shape { fill: var(--balloon-color); }
 .balloon-number { position: absolute; inset: 20% 0 auto; text-align: center; font-size: clamp(1.7rem, 6vw, 2.45rem); line-height: 1; font-weight: 700; text-shadow: 0 1px #ffffff88; }

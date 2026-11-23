@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" role="img" aria-labelledby="title">
+  <title id="title">Nubi, una nube sonriente</title>
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="8" stdDeviation="5" flood-color="#357eaa" flood-opacity=".22"/></filter>
+    <linearGradient id="cloud" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#def7fb"/></linearGradient>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M52 140c-24 0-39-17-39-37 0-20 16-36 35-37 6-29 29-48 57-48 24 0 45 14 54 36 5-2 10-3 15-3 23 0 41 18 41 41 0 2 0 4-1 6 13 5 21 17 21 30 0 18-14 32-32 32H52c-20 0-36-15-36-35 0-13 7-24 18-30" fill="url(#cloud)" stroke="#78c7dc" stroke-width="5" stroke-linejoin="round"/>
+    <ellipse cx="76" cy="113" rx="7" ry="10" fill="#253c60"/>
+    <ellipse cx="152" cy="113" rx="7" ry="10" fill="#253c60"/>
+    <ellipse cx="60" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
+    <ellipse cx="169" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
+    <path d="M99 124c5 14 27 19 39 0" fill="none" stroke="#253c60" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <path d="m194 35 4-13 5 13 13 4-13 5-5 13-4-13-13-5z" fill="#ffd66d" stroke="#eaaa45" stroke-width="2"/>
+  <circle cx="26" cy="37" r="5" fill="#ff9783"/>
+  <circle cx="212" cy="167" r="4" fill="#8f7bd7"/>
+</svg>

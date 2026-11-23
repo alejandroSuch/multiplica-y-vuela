@@ -4,7 +4,7 @@ Juego web de globos para practicar las tablas de multiplicar, pensado para niño
 
 ## Jugar
 
-Abre [el juego publicado](https://alejandroSuch.github.io/mult-game/), escribe tu nombre, elige una o varias tablas del 1 al 9 y una velocidad. Toca el globo que tenga la respuesta correcta.
+Abre [el juego publicado](https://alejandrosuch.github.io/multiplica-y-vuela/), escribe tu nombre, elige una o varias tablas del 1 al 9 y una velocidad. Toca el globo que tenga la respuesta correcta.
 
 - Empiezas con cinco vidas. Tocar una respuesta incorrecta o dejar que salgan los tres globos cuesta una vida.
 - Los globos ascienden a la misma velocidad desde alturas distintas y se balancean suavemente de lado a lado.

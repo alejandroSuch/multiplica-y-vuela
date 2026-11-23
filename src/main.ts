@@ -130,7 +130,7 @@ function selectedTablesText(): string {
 
 function tableButton(table: number): string {
   const selected = data.selectedTables.includes(table);
-  return `<button class="table-chip ${selected ? 'selected' : ''}" type="button" data-table="${table}" aria-pressed="${selected}" aria-label="Tabla ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}"><span class="table-number">${table}</span><span class="selection-mark" aria-hidden="true">${selected ? '✓' : '+'}</span></button>`;
+  return `<button class="table-chip ${selected ? 'selected' : ''}" type="button" data-table="${table}" aria-pressed="${selected}" aria-label="Tabla ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}">${table}</button>`;
 }
 
 function soundButton(): string {
@@ -218,7 +218,6 @@ function renderHome(editName = !data.playerName): void {
     button.classList.toggle('selected', selected);
     button.setAttribute('aria-pressed', String(selected));
     button.setAttribute('aria-label', `Tabla ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}`);
-    button.querySelector<HTMLElement>('.selection-mark')!.textContent = selected ? '✓' : '+';
     root.querySelector<HTMLElement>('#tables-summary')!.textContent = selectedTablesText();
     root.querySelector<HTMLElement>('#tables-error')!.textContent = '';
     persist();
@@ -274,7 +273,7 @@ function startGame(): void {
   root.innerHTML = shell(`
     <div class="game-screen screen">
       <div class="game-topbar"><button class="icon-button pause-button" id="pause-game" type="button" aria-label="Pausar partida" title="Pausar">Ⅱ</button><span class="player-pill">${escapeHtml(game.playerName)}</span>${soundButton()}</div>
-      <div class="hud"><div class="score-pill"><span class="hud-label">PUNTOS</span><strong id="score-value">0</strong></div><div class="lives-pill" id="lives-value" aria-label="5 vidas"></div></div>
+      <div class="hud"><div class="score-pill"><span class="hud-label">PUNTOS</span><strong id="score-value">0</strong></div><div class="lives-pill" id="lives-value" role="status" aria-live="polite" aria-label="5 vidas"></div></div>
       <div class="question-board"><span class="question-caption">¿Cuánto es?</span><strong id="question-text"></strong><span class="speed-badge" id="speed-badge"></span></div>
       <div class="playfield" id="playfield" aria-label="Globos con respuestas"></div>
       <div class="game-bottom"><span>¡Toca el globo correcto!</span><span class="round-count" id="round-count"></span></div>
@@ -302,7 +301,7 @@ function updateHud(): void {
   if (!game || screen !== 'game') return;
   root.querySelector<HTMLElement>('#score-value')!.textContent = String(game.score);
   root.querySelector<HTMLElement>('#lives-value')!.innerHTML = Array.from({ length: MAX_LIVES }, (_, index) =>
-    `<span class="heart ${index < game!.lives ? '' : 'empty'}" aria-hidden="true">♥</span>`,
+    `<span class="heart ${index < game!.lives ? '' : 'empty'}" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 21.1 10.6 19.8C5.3 15 2 12 2 8.4 2 5.4 4.4 3 7.5 3c1.8 0 3.4.8 4.5 2.1C13.1 3.8 14.7 3 16.5 3 19.6 3 22 5.4 22 8.4c0 3.6-3.3 6.6-8.6 11.4L12 21.1Z"/></svg></span>`,
   ).join('');
   root.querySelector<HTMLElement>('#lives-value')!.setAttribute('aria-label', `${game.lives} vidas`);
   root.querySelector<HTMLElement>('#round-count')!.textContent = `${game.correct} aciertos`;

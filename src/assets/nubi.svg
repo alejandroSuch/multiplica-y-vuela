@@ -5,7 +5,7 @@
     <linearGradient id="cloud" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#def7fb"/></linearGradient>
   </defs>
   <g filter="url(#shadow)">
-    <path d="M52 140c-24 0-39-17-39-37 0-20 16-36 35-37 6-29 29-48 57-48 24 0 45 14 54 36 5-2 10-3 15-3 23 0 41 18 41 41 0 2 0 4-1 6 13 5 21 17 21 30 0 18-14 32-32 32H52c-20 0-36-15-36-35 0-13 7-24 18-30" fill="url(#cloud)" stroke="#78c7dc" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M43 164C22 164 5 149 5 130c0-19 13-34 31-36 2-30 25-54 55-54 20 0 36 10 45 24 9-9 20-14 33-14 23 0 40 18 40 41 18 5 28 20 28 39 0 19-16 34-37 34H43Z" fill="url(#cloud)" stroke="#78c7dc" stroke-width="5" stroke-linejoin="round"/>
     <ellipse cx="76" cy="113" rx="7" ry="10" fill="#253c60"/>
     <ellipse cx="152" cy="113" rx="7" ry="10" fill="#253c60"/>
     <ellipse cx="60" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>

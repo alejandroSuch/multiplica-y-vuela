@@ -122,6 +122,17 @@ function nubi(className = ''): string {
   return `<img class="nubi ${className}" src="${nubiUrl}" alt="Nubi, la nube sonriente" />`;
 }
 
+function selectedTablesText(): string {
+  if (data.selectedTables.length === 0) return 'Ninguna tabla seleccionada';
+  if (data.selectedTables.length === TABLES.length) return 'Todas las tablas seleccionadas';
+  return `Tablas seleccionadas: ${data.selectedTables.join(', ')}`;
+}
+
+function tableButton(table: number): string {
+  const selected = data.selectedTables.includes(table);
+  return `<button class="table-chip ${selected ? 'selected' : ''}" type="button" data-table="${table}" aria-pressed="${selected}" aria-label="Tabla ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}"><span class="table-number">${table}</span><span class="selection-mark" aria-hidden="true">${selected ? '✓' : '+'}</span></button>`;
+}
+
 function soundButton(): string {
   return `<button class="icon-button sound-button" type="button" aria-label="${data.muted ? 'Activar sonido' : 'Silenciar sonido'}" title="${data.muted ? 'Activar sonido' : 'Silenciar sonido'}">${data.muted ? '🔇' : '🔊'}</button>`;
 }
@@ -163,8 +174,9 @@ function renderHome(editName = !data.playerName): void {
         <div class="setting-block">
           <div class="setting-heading"><h2>Elige tus tablas</h2><span>Del 1 al 9</span></div>
           <div class="table-grid" role="group" aria-label="Tablas de multiplicar">
-            ${TABLES.map((table) => `<button class="table-chip ${data.selectedTables.includes(table) ? 'selected' : ''}" type="button" data-table="${table}" aria-pressed="${data.selectedTables.includes(table)}">${table}</button>`).join('')}
+            ${TABLES.map(tableButton).join('')}
           </div>
+          <p class="table-status" id="tables-summary" role="status" aria-live="polite">${selectedTablesText()}</p>
           <p class="selection-error" id="tables-error" aria-live="polite"></p>
         </div>
         <div class="setting-block">
@@ -202,8 +214,12 @@ function renderHome(editName = !data.playerName): void {
     data.selectedTables = data.selectedTables.includes(table)
       ? data.selectedTables.filter((value) => value !== table)
       : [...data.selectedTables, table].sort((a, b) => a - b);
-    button.classList.toggle('selected', data.selectedTables.includes(table));
-    button.setAttribute('aria-pressed', String(data.selectedTables.includes(table)));
+    const selected = data.selectedTables.includes(table);
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+    button.setAttribute('aria-label', `Tabla ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}`);
+    button.querySelector<HTMLElement>('.selection-mark')!.textContent = selected ? '✓' : '+';
+    root.querySelector<HTMLElement>('#tables-summary')!.textContent = selectedTablesText();
     root.querySelector<HTMLElement>('#tables-error')!.textContent = '';
     persist();
     playTap();

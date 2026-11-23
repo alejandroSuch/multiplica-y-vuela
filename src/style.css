@@ -145,17 +145,22 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
 .setting-heading span { color: #658295; font-size: .86rem; }
 .table-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 7px; }
 .table-chip {
+  position: relative;
   aspect-ratio: 1;
   min-width: 0;
-  border: 2px solid #b6d5de;
+  border: 2px solid #b7c8ce;
   border-radius: 12px;
-  background: #fff;
-  color: #416b86;
+  background: #edf2f2;
+  color: #647885;
   font-size: clamp(1rem, 3vw, 1.4rem);
   font-weight: 700;
-  box-shadow: 0 3px 0 #a9c8d0;
+  box-shadow: 0 3px 0 #b7c8ce;
 }
 .table-chip.selected { border-color: #2c91aa; background: #64cbd3; color: #164d64; box-shadow: 0 3px 0 #2c91aa; }
+.table-number { display: block; line-height: 1; }
+.selection-mark { position: absolute; top: 3px; right: 3px; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; background: #d7e0e2; color: #5f7580; font: 700 12px/1 Fredoka, sans-serif; }
+.table-chip.selected .selection-mark { background: #fff; color: #17758e; }
+.table-status { min-height: 21px; margin: 10px 0 0; color: #3e7185; font-size: .87rem; font-weight: 650; }
 .table-chip:active, .difficulty-chip:active { transform: translateY(2px); }
 .difficulty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
 .difficulty-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 67px; padding: 6px 4px; border: 2px solid #d4d6db; border-radius: 15px; background: white; color: #3b627d; box-shadow: 0 3px 0 #cbd0d7; font-size: .95rem; font-weight: 700; }
@@ -263,13 +268,21 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
   .hero { min-height: 223px; }
   .nubi-hero { width: 119px; left: 0; }
   .speech-bubble { right: 0; font-size: .83rem; }
-  .setup-card { padding: 17px; }
+  .setup-card { padding: 15px; }
   .table-grid { gap: 4px; }
   .table-chip { border-radius: 9px; }
   .game-screen { padding-inline: 11px; }
   .question-board { margin-top: 11px; min-height: 92px; }
   .game-bottom { font-size: .75rem; }
   .score-pill, .lives-pill { padding-inline: 9px; }
+}
+
+@media (max-width: 500px) {
+  .table-grid { grid-template-columns: repeat(5, 1fr); gap: 7px; }
+}
+
+@media (max-width: 350px) {
+  .table-grid { grid-template-columns: repeat(3, 1fr); gap: 7px; max-width: 244px; margin-inline: auto; }
 }
 
 @media (max-height: 680px) and (orientation: portrait) {

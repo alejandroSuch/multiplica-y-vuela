@@ -187,8 +187,29 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
 .difficulty-chip span:first-child { font-size: 1.35rem; line-height: 1; }
 .difficulty-chip.selected { border-color: #ecb34b; background: #fff0b3; color: #755526; box-shadow: 0 3px 0 #e8be6a; }
 .start-button { margin-top: 22px; }
-.leaderboard-link { width: min(100%, 600px); margin-top: 18px; }
+.tables-link, .leaderboard-link { width: min(100%, 600px); }
+.tables-link { margin-top: 18px; }
+.leaderboard-link { margin-top: 10px; }
 .home-note { margin: 16px 0 0; color: #2c6381; font-size: .87rem; text-align: center; text-shadow: 0 1px #fff7; }
+
+/* Multiplication tables */
+.tables-screen { padding: max(18px, env(safe-area-inset-top)) clamp(16px, 4vw, 30px) max(30px, env(safe-area-inset-bottom)); }
+.tables-header { display: flex; align-items: center; gap: 14px; min-height: 48px; }
+.tables-header span { color: #286b8b; font-size: .78rem; font-weight: 700; letter-spacing: .1em; }
+.tables-screen h1 { margin: 23px 0 8px; color: #fff; font-size: clamp(2.5rem, 8vw, 3.7rem); text-align: center; text-shadow: 0 4px 0 #3e85a5, 0 7px 12px #318cac75; }
+.tables-screen h1:focus { outline: none; }
+.tables-intro { margin: 0 0 22px; color: #285d77; font-size: 1.05rem; text-align: center; }
+.tables-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 660px; margin: 0 auto; }
+.tables-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 15px 12px 17px; border: 3px solid #fff; border-radius: 20px; background: #fffcf0ee; color: #245874; box-shadow: 0 5px 0 #67aeb7, 0 9px 18px #3d798544; text-align: left; }
+.tables-card:hover { background: #fff4d4; }
+.tables-card-title { font-size: clamp(1.08rem, 3vw, 1.35rem); font-weight: 700; }
+.tables-card-results { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; width: 100%; }
+.tables-card-results span { display: grid; place-items: center; min-width: 0; min-height: 32px; border-radius: 9px; background: #d9f2ee; color: #235b72; font-size: .95rem; font-weight: 700; }
+.table-facts { width: min(100%, 540px); margin: 20px auto 0; padding: 13px; list-style: none; border: 4px solid #fff; border-radius: 24px; background: #fffcf0f2; box-shadow: 0 7px 0 #67aeb7, 0 12px 25px #3d798544; }
+.table-facts li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 6px clamp(14px, 4vw, 26px); border-bottom: 2px dashed #d5e5df; font-size: clamp(1.4rem, 5vw, 1.8rem); }
+.table-facts li:last-child { border-bottom: 0; }
+.table-facts li strong { color: #dc6a69; }
+.tables-back { display: block; width: min(100%, 540px); margin: 20px auto 0; }
 
 /* Gameplay */
 .game-screen { display: flex; flex-direction: column; height: 100dvh; min-height: 500px; padding: max(15px, env(safe-area-inset-top)) 18px max(10px, env(safe-area-inset-bottom)); overflow: hidden; }
@@ -337,6 +358,14 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
 
 @media (max-width: 350px) {
   .table-grid { grid-template-columns: repeat(3, 1fr); gap: 7px; max-width: 244px; margin-inline: auto; }
+  .tables-overview { gap: 9px; }
+  .tables-card { padding-inline: 8px; }
+  .tables-card-results { gap: 3px; }
+  .tables-card-results span { font-size: .82rem; }
+}
+
+@media (min-width: 600px) {
+  .tables-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-height: 680px) and (orientation: portrait) {
@@ -375,14 +404,14 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
   .speech-bubble { bottom: 17px; }
   .setting-block + .setting-block { margin-top: 14px; }
   .start-button { margin-top: 16px; }
-  .leaderboard-link { margin-top: 12px; }
+  .tables-link { margin-top: 12px; }
   .home-note { margin-top: 10px; }
 }
 
 @media (min-width: 900px) {
   .app-shell, .screen { min-height: min(100dvh, 1100px); }
   .app-shell { height: min(100dvh, 1100px); border: 8px solid #fff9; border-radius: 32px; }
-  .home-shell { height: auto; }
+  .home-shell, .tables-shell { height: auto; }
   .game-screen { height: 100%; }
 }
 

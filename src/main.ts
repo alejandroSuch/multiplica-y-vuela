@@ -7,7 +7,7 @@ import {
 import { loadData, recordGame, saveData, type SavedData } from './storage';
 import { shouldAskToRotate } from './orientation';
 
-type Screen = 'home' | 'game' | 'scores' | 'summary';
+type Screen = 'home' | 'game' | 'scores' | 'summary' | 'tables';
 type RoundPhase = 'active' | 'feedback';
 type FeedbackKind = 'correct' | 'wrong' | 'escaped' | 'timeout';
 
@@ -207,13 +207,14 @@ function renderHome(editName = !data.playerName): void {
         </div>
         <button class="primary-button start-button" id="start-game" type="button">¡A volar! <span aria-hidden="true">➜</span></button>
       </section>
+      <button class="secondary-button tables-link" id="show-tables" type="button">📖 Ver las tablas</button>
       <button class="secondary-button leaderboard-link" id="show-scores" type="button">🏆 Ver mejores puntuaciones</button>
       <p class="home-note" id="home-note">${data.selectedMode === 'review' ? '5 vidas · 3 globos · ¡muchas multiplicaciones!' : '5 vidas · escribe el resultado antes de que se acabe el tiempo'}</p>
     </div>
     <dialog class="info-dialog" id="info-dialog" aria-labelledby="info-title">
       <div class="info-header"><span class="eyebrow">UN POQUITO SOBRE EL JUEGO</span><button class="icon-button info-close" id="close-info" type="button" aria-label="Cerrar información">×</button></div>
       <h2 id="info-title">¡Multiplica y vuela!</h2>
-      <p>Practica las tablas del 1 al 9 a tu ritmo. En <strong>Repaso</strong>, toca el globo con la respuesta correcta. En <strong>Calcula</strong>, escribe el resultado antes de que se acabe el tiempo. Elige tus tablas y tu dificultad, ¡y a volar!</p>
+      <p>En <strong>Ver las tablas</strong> puedes leer todas las multiplicaciones con calma y sin jugar. Si quieres jugar, en <strong>Repaso</strong> toca el globo con la respuesta correcta; en <strong>Calcula</strong>, escribe el resultado antes de que se acabe el tiempo.</p>
       <div class="info-privacy"><strong>🔒 Tu juego, tus datos</strong><p>No usamos cookies ni herramientas de seguimiento. Tu nombre, tus preferencias y tus puntuaciones se guardan solo en este navegador para que puedas seguir jugando y consultar tus resultados. El juego no los envía a terceros ni los utiliza con fines comerciales.</p></div>
       <div class="info-support"><strong>☕ ¿Te ha gustado?</strong><p>Si te apetece apoyar el juego, puedes invitarme a un café.</p><a class="secondary-button coffee-link" href="https://buymeacoffee.com/alejandrosuch" target="_blank" rel="noopener noreferrer">Invítame a un café ↗</a><small>El enlace abre una página externa.</small></div>
     </dialog>
@@ -296,7 +297,57 @@ function renderHome(editName = !data.playerName): void {
     startGame();
   });
   root.querySelector<HTMLButtonElement>('#show-scores')!.addEventListener('click', () => { scoresReturn = 'home'; scoresMode = data.selectedMode; playTap(); renderScores(); });
+  root.querySelector<HTMLButtonElement>('#show-tables')!.addEventListener('click', renderTablesOverview);
+  updateOrientation();
   showStorageWarning();
+}
+
+function renderTablesOverview(): void {
+  screen = 'tables';
+  game = null;
+  root.innerHTML = shell(`
+    <div class="tables-screen screen">
+      <div class="tables-header"><button class="icon-button" id="tables-home" type="button" aria-label="Volver al inicio">←</button><span>REPASA A TU RITMO</span></div>
+      <h1 tabindex="-1">Las tablas</h1>
+      <p class="tables-intro">Mira los resultados y elige una tabla para verla completa.</p>
+      <div class="tables-overview">
+        ${TABLES.map((table) => `<button class="tables-card" type="button" data-view-table="${table}">
+          <span class="tables-card-title">Tabla del ${table}</span>
+          <span class="tables-card-results">${Array.from({ length: 10 }, (_, index) => `<span>${table * (index + 1)}</span>`).join('')}</span>
+        </button>`).join('')}
+      </div>
+    </div>
+  `, 'tables-shell');
+  root.querySelector<HTMLButtonElement>('#tables-home')!.addEventListener('click', () => {
+    renderHome(!data.playerName);
+    root.querySelector<HTMLButtonElement>('#show-tables')!.focus();
+  });
+  root.querySelectorAll<HTMLButtonElement>('[data-view-table]').forEach((button) => button.addEventListener('click', () => renderTableDetail(Number(button.dataset.viewTable))));
+  updateOrientation();
+  root.querySelector<HTMLElement>('h1')!.focus();
+}
+
+function renderTableDetail(table: number): void {
+  if (!TABLES.includes(table as typeof TABLES[number])) return;
+  screen = 'tables';
+  root.innerHTML = shell(`
+    <div class="tables-screen screen">
+      <div class="tables-header"><button class="icon-button" id="tables-overview" type="button" aria-label="Volver a todas las tablas">←</button><span>REPASA A TU RITMO</span></div>
+      <h1 tabindex="-1">Tabla del ${table}</h1>
+      <ol class="table-facts" aria-label="Multiplicaciones de la tabla del ${table}">
+        ${Array.from({ length: 10 }, (_, index) => `<li><span>${table} × ${index + 1}</span><strong>= ${table * (index + 1)}</strong></li>`).join('')}
+      </ol>
+      <button class="secondary-button tables-back" id="tables-back" type="button">Ver todas las tablas</button>
+    </div>
+  `, 'tables-shell');
+  const back = () => {
+    renderTablesOverview();
+    root.querySelector<HTMLButtonElement>(`[data-view-table="${table}"]`)!.focus();
+  };
+  root.querySelector<HTMLButtonElement>('#tables-overview')!.addEventListener('click', back);
+  root.querySelector<HTMLButtonElement>('#tables-back')!.addEventListener('click', back);
+  updateOrientation();
+  root.querySelector<HTMLElement>('h1')!.focus();
 }
 
 function startGame(): void {
@@ -350,6 +401,7 @@ function startGame(): void {
   }
   updateHud();
   startRound();
+  updateOrientation();
 }
 
 function setManualPause(paused: boolean): void {
@@ -661,7 +713,7 @@ function updateOrientation(): void {
   const physicallyLandscape = shouldAskToRotate(signals);
   if (!physicallyLandscape && !textInputFocused) orientationDismissed = false;
   landscape = shouldAskToRotate({ ...signals, dismissed: orientationDismissed });
-  orientationOverlay.classList.toggle('is-visible', landscape);
+  orientationOverlay.classList.toggle('is-visible', screen === 'game' && landscape);
   lastFrame = 0;
   if (landscape) {
     pop.pause();

@@ -6,6 +6,8 @@ Juego web de globos para practicar las tablas de multiplicar, pensado para niño
 
 Abre [el juego publicado](https://alejandrosuch.github.io/multiplica-y-vuela/), escribe tu nombre, elige **Repaso** o **Calcula**, una o varias tablas del 1 al 9 y una dificultad.
 
+Si solo quieres estudiar, pulsa **Ver las tablas** en el inicio. Puedes consultar los diez resultados de cada tabla del 1 al 9 y abrir cualquiera para leer sus multiplicaciones completas, sin empezar una partida.
+
 - **Repaso:** toca el globo que tenga la respuesta correcta antes de que se escapen los tres globos.
 - **Calcula:** escribe el resultado con el teclado numérico y pulsa **Validar**. Puedes pulsar **Borrar** para empezar la respuesta de nuevo; el tiempo sigue corriendo. También puedes usar las teclas numéricas, Retroceso y Entrar. Cada operación tiene una barra de tiempo: empieza en 18, 15 o 12 segundos según la dificultad y baja un 10 % cada diez aciertos, hasta un mínimo de tres segundos.
 

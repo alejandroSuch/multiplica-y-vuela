@@ -4,14 +4,17 @@ Juego web de globos para practicar las tablas de multiplicar, pensado para niño
 
 ## Jugar
 
-Abre [el juego publicado](https://alejandrosuch.github.io/multiplica-y-vuela/), escribe tu nombre, elige una o varias tablas del 1 al 9 y una velocidad. Toca el globo que tenga la respuesta correcta.
+Abre [el juego publicado](https://alejandrosuch.github.io/multiplica-y-vuela/), escribe tu nombre, elige **Repaso** o **Calcula**, una o varias tablas del 1 al 9 y una dificultad.
 
-- Empiezas con cinco vidas. Tocar una respuesta incorrecta o dejar que salgan los tres globos cuesta una vida.
+- **Repaso:** toca el globo que tenga la respuesta correcta antes de que se escapen los tres globos.
+- **Calcula:** escribe el resultado con el teclado numérico y pulsa **Validar**. Puedes pulsar **Borrar** para empezar la respuesta de nuevo; el tiempo sigue corriendo. También puedes usar las teclas numéricas, Retroceso y Entrar. Cada operación tiene una barra de tiempo: empieza en 18, 15 o 12 segundos según la dificultad y baja un 10 % cada diez aciertos, hasta un mínimo de tres segundos.
+
+- Empiezas con cinco vidas. En Repaso, tocar una respuesta incorrecta o dejar que salgan los tres globos cuesta una vida. En Calcula, validar una respuesta incorrecta o agotar el tiempo cuesta una vida.
 - Los globos ascienden a la misma velocidad desde alturas distintas y se balancean suavemente de lado a lado.
 - La velocidad aumenta un 10 % cada diez aciertos, hasta un recorrido mínimo de cuatro segundos.
 - Cada acierto suma `10 × multiplicador de dificultad + 5 × tramos de diez aciertos completados` puntos. Los multiplicadores son 1, 2 y 3 para fácil, medio y difícil.
 - Las tablas se eligen con azar equilibrado: las menos usadas tienen más probabilidad y se evitan las repeticiones inmediatas. Las operaciones recientes tampoco se repiten si hay alternativas.
-- Las partidas terminadas y las diez mejores puntuaciones se guardan únicamente en el navegador donde juegas.
+- Las partidas terminadas y las diez mejores puntuaciones **de cada modo** se guardan únicamente en el navegador donde juegas. Las puntuaciones anteriores a Calcula se conservan en Repaso.
 
 ## Desarrollo
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createQuestion, pointsForCorrect, QuestionDeck, roundSeconds, topTen, type GameSummary } from '../src/game';
-import { defaultData, parseData, recordGame, saveData } from '../src/storage';
+import { calculateSeconds, createQuestion, pointsForCorrect, QuestionDeck, roundSeconds, topTen, type GameSummary } from '../src/game';
+import { defaultData, LEGACY_STORAGE_KEY, loadData, parseData, recordGame, saveData, STORAGE_KEY } from '../src/storage';
 
 describe('questions', () => {
   it('uses only selected tables and a multiplier from 1 to 10', () => {
@@ -66,11 +66,20 @@ describe('progression', () => {
     expect(pointsForCorrect('medium', 10)).toBe(25);
     expect(pointsForCorrect('hard', 20)).toBe(40);
   });
+
+  it('gives calculate mode 18/15/12 seconds, reduces time every 10 hits, and stops at 3 seconds', () => {
+    expect(calculateSeconds('easy', 0)).toBe(18);
+    expect(calculateSeconds('medium', 0)).toBe(15);
+    expect(calculateSeconds('hard', 0)).toBe(12);
+    expect(calculateSeconds('easy', 9)).toBe(18);
+    expect(calculateSeconds('easy', 10)).toBeCloseTo(16.2);
+    expect(calculateSeconds('hard', 500)).toBe(3);
+  });
 });
 
 describe('persistence and leaderboard', () => {
   const game = (id: string, score: number): GameSummary => ({
-    id, playerName: 'Ana', score, correct: score / 10, mistakes: 5,
+    id, mode: 'review', playerName: 'Ana', score, correct: score / 10, mistakes: 5,
     difficulty: 'easy', tables: [1, 2], completedAt: '2026-11-23T12:00:00.000Z',
   });
 
@@ -91,5 +100,29 @@ describe('persistence and leaderboard', () => {
     expect(parseData('{')).toEqual(defaultData());
     expect(parseData(JSON.stringify({ ...defaultData(), selectedTables: [] })).selectedTables).toEqual([]);
     expect(saveData(defaultData(), { setItem: () => { throw new Error('quota'); } })).toBe(false);
+  });
+
+  it('preserves the old leaderboard and migrates its games to review mode', () => {
+    const oldGame = (({ mode: _mode, ...rest }) => rest)(game('old', 120));
+    const legacy = { ...defaultData(), version: 1, highScores: [oldGame], recentGames: [oldGame] };
+    const storage = { getItem: (key: string) => key === LEGACY_STORAGE_KEY ? JSON.stringify(legacy) : null };
+    const migrated = loadData(storage);
+    expect(migrated.version).toBe(2);
+    expect(migrated.highScores[0]).toMatchObject({ id: 'old', mode: 'review' });
+    expect(migrated.recentGames[0]).toMatchObject({ id: 'old', mode: 'review' });
+    expect(migrated.selectedMode).toBe('review');
+    expect(STORAGE_KEY).not.toBe(LEGACY_STORAGE_KEY);
+  });
+
+  it('keeps ten best scores for each mode independently', () => {
+    let data = defaultData();
+    for (let index = 0; index < 12; index += 1) {
+      data = recordGame(data, game(`review-${index}`, index));
+      data = recordGame(data, { ...game(`calculate-${index}`, index + 100), mode: 'calculate' });
+    }
+    expect(data.highScores.filter((entry) => entry.mode === 'review')).toHaveLength(10);
+    expect(data.highScores.filter((entry) => entry.mode === 'calculate')).toHaveLength(10);
+    expect(data.highScores.find((entry) => entry.id === 'review-11')?.score).toBe(11);
+    expect(data.highScores.find((entry) => entry.id === 'calculate-11')?.score).toBe(111);
   });
 });

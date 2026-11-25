@@ -1,4 +1,10 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
+export type GameMode = 'review' | 'calculate';
+
+export const GAME_MODES: Record<GameMode, string> = {
+  review: 'Repaso',
+  calculate: 'Calcula',
+};
 
 export interface Question {
   table: number;
@@ -10,6 +16,7 @@ export interface Question {
 
 export interface GameSummary {
   id: string;
+  mode: GameMode;
   playerName: string;
   score: number;
   correct: number;
@@ -145,6 +152,11 @@ export function roundSeconds(difficulty: Difficulty, correct: number): number {
   return Math.max(4, DIFFICULTIES[difficulty].seconds / (1.1 ** speedTier(correct)));
 }
 
+export function calculateSeconds(difficulty: Difficulty, correct: number): number {
+  const initial = { easy: 18, medium: 15, hard: 12 }[difficulty];
+  return Math.max(3, initial * (0.9 ** speedTier(correct)));
+}
+
 export function pointsForCorrect(difficulty: Difficulty, correctBefore: number): number {
   return 10 * DIFFICULTIES[difficulty].multiplier + 5 * speedTier(correctBefore);
 }
@@ -153,4 +165,10 @@ export function topTen(games: GameSummary[]): GameSummary[] {
   return [...games].sort((a, b) =>
     b.score - a.score || b.correct - a.correct || a.completedAt.localeCompare(b.completedAt),
   ).slice(0, 10);
+}
+
+export function topTenByMode(games: GameSummary[]): GameSummary[] {
+  return (Object.keys(GAME_MODES) as GameMode[]).flatMap((mode) =>
+    topTen(games.filter((game) => game.mode === mode)),
+  );
 }

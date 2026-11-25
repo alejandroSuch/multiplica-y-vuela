@@ -1,15 +1,15 @@
 import './style.css';
 import nubiUrl from './assets/nubi.svg?url';
 import {
-  DIFFICULTIES, MAX_LIVES, pointsForCorrect, QuestionDeck, roundSeconds, TABLES,
-  type Difficulty, type GameSummary, type Question,
+  calculateSeconds, DIFFICULTIES, GAME_MODES, MAX_LIVES, pointsForCorrect, QuestionDeck, roundSeconds, TABLES,
+  type Difficulty, type GameMode, type GameSummary, type Question,
 } from './game';
 import { loadData, recordGame, saveData, type SavedData } from './storage';
 import { shouldAskToRotate } from './orientation';
 
 type Screen = 'home' | 'game' | 'scores' | 'summary';
 type RoundPhase = 'active' | 'feedback';
-type FeedbackKind = 'correct' | 'wrong' | 'escaped';
+type FeedbackKind = 'correct' | 'wrong' | 'escaped' | 'timeout';
 
 interface Balloon {
   element: HTMLButtonElement;
@@ -22,6 +22,7 @@ interface Balloon {
 }
 
 interface ActiveGame {
+  mode: GameMode;
   playerName: string;
   tables: number[];
   difficulty: Difficulty;
@@ -34,6 +35,8 @@ interface ActiveGame {
   balloons: Balloon[];
   phase: RoundPhase;
   elapsed: number;
+  roundDuration: number;
+  typedAnswer: string;
   feedbackLeft: number;
   requiresContinue: boolean;
   manualPause: boolean;
@@ -56,6 +59,7 @@ const coarsePointerQuery = matchMedia('(pointer: coarse)');
 const data: SavedData = loadData();
 let screen: Screen = 'home';
 let scoresReturn: 'home' | 'summary' = 'home';
+let scoresMode: GameMode = data.selectedMode;
 let game: ActiveGame | null = null;
 let lastSummary: GameSummary | null = null;
 let storageFailed = false;
@@ -176,6 +180,13 @@ function renderHome(editName = !data.playerName): void {
       <section class="setup-card" aria-label="Preparar partida">
         ${nameBlock}
         <div class="setting-block">
+          <h2>Elige el modo</h2>
+          <div class="mode-grid" role="group" aria-label="Modo de juego">
+            <button class="mode-chip ${data.selectedMode === 'review' ? 'selected' : ''}" type="button" data-mode="review" aria-pressed="${data.selectedMode === 'review'}"><strong>🎈 Repaso</strong><span>Toca la respuesta correcta</span></button>
+            <button class="mode-chip ${data.selectedMode === 'calculate' ? 'selected' : ''}" type="button" data-mode="calculate" aria-pressed="${data.selectedMode === 'calculate'}"><strong>🔢 Calcula</strong><span>Escribe el resultado</span></button>
+          </div>
+        </div>
+        <div class="setting-block">
           <div class="setting-heading"><h2>Elige tus tablas</h2><span>Del 1 al 9</span></div>
           <div class="table-grid" role="group" aria-label="Tablas de multiplicar">
             ${TABLES.map(tableButton).join('')}
@@ -184,7 +195,7 @@ function renderHome(editName = !data.playerName): void {
           <p class="selection-error" id="tables-error" aria-live="polite"></p>
         </div>
         <div class="setting-block">
-          <h2>Elige la velocidad</h2>
+          <h2>Elige la dificultad</h2>
           <div class="difficulty-grid" role="group" aria-label="Dificultad">
             ${(Object.keys(DIFFICULTIES) as Difficulty[]).map((difficulty) => `<button class="difficulty-chip ${data.difficulty === difficulty ? 'selected' : ''}" type="button" data-difficulty="${difficulty}" aria-pressed="${data.difficulty === difficulty}"><span aria-hidden="true">${DIFFICULTIES[difficulty].emoji}</span><span>${DIFFICULTIES[difficulty].label}</span></button>`).join('')}
           </div>
@@ -192,12 +203,26 @@ function renderHome(editName = !data.playerName): void {
         <button class="primary-button start-button" id="start-game" type="button">¡A volar! <span aria-hidden="true">➜</span></button>
       </section>
       <button class="secondary-button leaderboard-link" id="show-scores" type="button">🏆 Ver mejores puntuaciones</button>
-      <p class="home-note">5 vidas · 3 globos · ¡muchas multiplicaciones!</p>
+      <p class="home-note" id="home-note">${data.selectedMode === 'review' ? '5 vidas · 3 globos · ¡muchas multiplicaciones!' : '5 vidas · escribe el resultado antes de que se acabe el tiempo'}</p>
     </div>
   `, 'home-shell');
 
   wireSoundButton();
   root.querySelector<HTMLButtonElement>('#change-player')?.addEventListener('click', () => renderHome(true));
+  root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((button) => button.addEventListener('click', () => {
+    data.selectedMode = button.dataset.mode as GameMode;
+    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((choice) => {
+      const selected = choice.dataset.mode === data.selectedMode;
+      choice.classList.toggle('selected', selected);
+      choice.setAttribute('aria-pressed', String(selected));
+    });
+    root.querySelector<HTMLElement>('#home-note')!.textContent = data.selectedMode === 'review'
+      ? '5 vidas · 3 globos · ¡muchas multiplicaciones!'
+      : '5 vidas · escribe el resultado antes de que se acabe el tiempo';
+    scoresMode = data.selectedMode;
+    persist();
+    playTap();
+  }));
   root.querySelector<HTMLFormElement>('#name-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const input = root.querySelector<HTMLInputElement>('#player-name')!;
@@ -252,12 +277,13 @@ function renderHome(editName = !data.playerName): void {
     playTap();
     startGame();
   });
-  root.querySelector<HTMLButtonElement>('#show-scores')!.addEventListener('click', () => { scoresReturn = 'home'; playTap(); renderScores(); });
+  root.querySelector<HTMLButtonElement>('#show-scores')!.addEventListener('click', () => { scoresReturn = 'home'; scoresMode = data.selectedMode; playTap(); renderScores(); });
   showStorageWarning();
 }
 
 function startGame(): void {
   game = {
+    mode: data.selectedMode,
     playerName: data.playerName,
     tables: [...data.selectedTables],
     difficulty: data.difficulty,
@@ -270,18 +296,28 @@ function startGame(): void {
     balloons: [],
     phase: 'active',
     elapsed: 0,
+    roundDuration: 0,
+    typedAnswer: '',
     feedbackLeft: 0,
     requiresContinue: false,
     manualPause: false,
   };
   screen = 'game';
   root.innerHTML = shell(`
-    <div class="game-screen screen">
+    <div class="game-screen screen ${game.mode === 'calculate' ? 'calculate-screen' : ''}">
       <div class="game-topbar"><button class="icon-button pause-button" id="pause-game" type="button" aria-label="Pausar partida" title="Pausar">Ⅱ</button><span class="player-pill">${escapeHtml(game.playerName)}</span>${soundButton()}</div>
       <div class="hud"><div class="score-pill"><span class="hud-label">PUNTOS</span><strong id="score-value">0</strong></div><div class="lives-pill" id="lives-value" role="status" aria-live="polite" aria-label="5 vidas"></div></div>
       <div class="question-board"><span class="question-caption">¿Cuánto es?</span><strong id="question-text"></strong><span class="speed-badge" id="speed-badge"></span></div>
-      <div class="playfield" id="playfield" aria-label="Globos con respuestas"></div>
-      <div class="game-bottom"><span>¡Toca el globo correcto!</span><span class="round-count" id="round-count"></span></div>
+      ${game.mode === 'review'
+        ? `<div class="playfield" id="playfield" aria-label="Globos con respuestas"></div><div class="game-bottom"><span>¡Toca el globo correcto!</span><span class="round-count" id="round-count"></span></div>`
+        : `<div class="calculate-content">
+            <div class="timer-wrap"><div class="timer-label"><span>TIEMPO</span><strong id="timer-seconds"></strong></div><div class="timer-track" id="timer-track" role="progressbar" aria-label="Tiempo restante" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div class="timer-fill" id="timer-fill"></div></div></div>
+            <div class="answer-display" id="answer-display" role="status" aria-live="polite" aria-label="Respuesta vacía">?</div>
+            <div class="digit-grid keypad-grid" role="group" aria-label="Teclado numérico">${[1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, null].map((digit) => digit === null ? '<span aria-hidden="true"></span>' : `<button class="keypad-key" type="button" data-digit="${digit}" aria-label="Dígito ${digit}">${digit}</button>`).join('')}</div>
+            <div class="answer-actions"><button class="secondary-button" id="clear-answer" type="button">Borrar</button><button class="primary-button" id="validate-answer" type="button" disabled>Validar</button></div>
+            <div class="calculate-feedback" id="calculate-feedback" aria-live="polite"></div>
+            <div class="game-bottom"><span>Escribe el resultado</span><span class="round-count" id="round-count"></span></div>
+          </div>`}
       <div class="pause-overlay" id="pause-overlay" hidden><div class="pause-card">${nubi('nubi-pause')}<h2>¡Un descansito!</h2><p>Los globos esperan por ti.</p><button class="primary-button" id="resume-game" type="button">Seguir jugando</button><button class="text-button" id="quit-game" type="button">Salir de la partida</button></div></div>
     </div>
   `, 'game-shell');
@@ -289,6 +325,11 @@ function startGame(): void {
   root.querySelector<HTMLButtonElement>('#pause-game')!.addEventListener('click', () => setManualPause(true));
   root.querySelector<HTMLButtonElement>('#resume-game')!.addEventListener('click', () => setManualPause(false));
   root.querySelector<HTMLButtonElement>('#quit-game')!.addEventListener('click', () => renderHome(false));
+  if (game.mode === 'calculate') {
+    root.querySelectorAll<HTMLButtonElement>('.keypad-key').forEach((button) => button.addEventListener('click', () => enterDigit(button.dataset.digit!, button)));
+    root.querySelector<HTMLButtonElement>('#clear-answer')!.addEventListener('click', clearAnswer);
+    root.querySelector<HTMLButtonElement>('#validate-answer')!.addEventListener('click', validateAnswer);
+  }
   updateHud();
   startRound();
 }
@@ -310,7 +351,7 @@ function updateHud(): void {
   ).join('');
   root.querySelector<HTMLElement>('#lives-value')!.setAttribute('aria-label', `${game.lives} vidas`);
   root.querySelector<HTMLElement>('#round-count')!.textContent = `${game.correct} aciertos`;
-  root.querySelector<HTMLElement>('#speed-badge')!.textContent = `Velocidad ${Math.floor(game.correct / 10) + 1}`;
+  root.querySelector<HTMLElement>('#speed-badge')!.textContent = `${game.mode === 'review' ? 'Velocidad' : 'Nivel'} ${Math.floor(game.correct / 10) + 1}`;
 }
 
 function balloonMarkup(value: number, color: string, index: number): string {
@@ -330,9 +371,21 @@ function startRound(): void {
   game.question = game.deck.next();
   game.phase = 'active';
   game.elapsed = 0;
+  game.roundDuration = game.mode === 'calculate' ? calculateSeconds(game.difficulty, game.correct) : 0;
+  game.typedAnswer = '';
   game.feedbackLeft = 0;
   game.requiresContinue = false;
   const question = game.question;
+  root.querySelector<HTMLElement>('#question-text')!.textContent = `${question.table} × ${question.multiplier}`;
+  if (game.mode === 'calculate') {
+    root.querySelector<HTMLElement>('#calculate-feedback')!.innerHTML = '';
+    root.querySelector<HTMLElement>('#calculate-feedback')!.classList.remove('visible');
+    root.querySelector<HTMLButtonElement>('#clear-answer')!.disabled = false;
+    updateAnswer();
+    updateTimer();
+    updateHud();
+    return;
+  }
   const colors = chooseBalloonColors();
   const heightRanks = randomOrder([0, 1, 2]);
   const playfield = root.querySelector<HTMLElement>('#playfield')!;
@@ -349,9 +402,53 @@ function startRound(): void {
     escaped: false,
   }));
   game.balloons.forEach((balloon) => balloon.element.addEventListener('click', () => chooseBalloon(balloon)));
-  root.querySelector<HTMLElement>('#question-text')!.textContent = `${question.table} × ${question.multiplier}`;
   updateHud();
   positionBalloons();
+}
+
+function updateAnswer(): void {
+  if (!game || game.mode !== 'calculate') return;
+  const display = root.querySelector<HTMLElement>('#answer-display')!;
+  display.textContent = game.typedAnswer || '?';
+  display.setAttribute('aria-label', game.typedAnswer ? `Respuesta ${game.typedAnswer}` : 'Respuesta vacía');
+  root.querySelector<HTMLButtonElement>('#validate-answer')!.disabled = game.typedAnswer.length === 0 || game.phase !== 'active';
+}
+
+function enterDigit(digit: string, button?: HTMLButtonElement): void {
+  if (!game || game.mode !== 'calculate' || game.phase !== 'active' || isPaused() || game.typedAnswer.length >= 2) return;
+  game.typedAnswer += digit;
+  const key = button ?? root.querySelector<HTMLButtonElement>(`.keypad-key[data-digit="${digit}"]`);
+  if (key) {
+    key.classList.remove('key-pressed');
+    void key.offsetWidth;
+    key.classList.add('key-pressed');
+  }
+  playTap();
+  updateAnswer();
+}
+
+function clearAnswer(): void {
+  if (!game || game.mode !== 'calculate' || game.phase !== 'active' || isPaused()) return;
+  game.typedAnswer = '';
+  playTap();
+  updateAnswer();
+}
+
+function validateAnswer(): void {
+  if (!game || game.mode !== 'calculate' || game.phase !== 'active' || isPaused() || !game.typedAnswer) return;
+  finishRound(Number(game.typedAnswer) === game.question!.answer ? 'correct' : 'wrong');
+}
+
+function updateTimer(): void {
+  if (!game || game.mode !== 'calculate') return;
+  const remaining = Math.max(0, game.roundDuration - game.elapsed);
+  const percent = Math.max(0, Math.min(100, remaining / game.roundDuration * 100));
+  root.querySelector<HTMLElement>('#timer-seconds')!.textContent = `${Math.ceil(remaining)} s`;
+  root.querySelector<HTMLElement>('#timer-fill')!.style.width = `${percent}%`;
+  const track = root.querySelector<HTMLElement>('#timer-track')!;
+  track.setAttribute('aria-valuenow', String(Math.round(percent)));
+  track.setAttribute('aria-valuetext', `${Math.ceil(remaining)} segundos restantes`);
+  track.classList.toggle('timer-low', percent <= 25);
 }
 
 function positionBalloons(): void {
@@ -406,16 +503,29 @@ function finishRound(kind: FeedbackKind, chosen?: Balloon): void {
     detail = `+${gained} puntos`;
     chosen?.element.classList.add('burst-correct');
     if (chosen) burstConfetti(chosen.element);
+    else if (game.mode === 'calculate') burstConfetti(root.querySelector<HTMLElement>('#answer-display')!);
     playApplause();
   } else {
     game.lives -= 1;
     game.mistakes += 1;
-    message = kind === 'wrong' ? '¡Casi lo tienes!' : '¡Se escaparon!';
+    message = kind === 'wrong' ? '¡Casi lo tienes!' : kind === 'timeout' ? '¡Se acabó el tiempo!' : '¡Se escaparon!';
     detail = `${question.table} × ${question.multiplier} = ${question.answer}`;
     if (chosen) {
       chosen.element.classList.add('burst-wrong');
       playPop();
     } else playPop();
+  }
+  if (game.mode === 'calculate') {
+    root.querySelector<HTMLButtonElement>('#validate-answer')!.disabled = true;
+    root.querySelector<HTMLButtonElement>('#clear-answer')!.disabled = true;
+    const layer = root.querySelector<HTMLElement>('#calculate-feedback')!;
+    const continueButton = game.requiresContinue
+      ? `<button class="secondary-button feedback-continue" type="button">${game.lives <= 0 ? 'Ver resultado' : 'Vale, seguir'}</button>` : '';
+    layer.innerHTML = `<div class="feedback-card ${kind}"><div class="feedback-main">${nubi('nubi-feedback')}<div class="feedback-copy"><strong>${message}</strong><span>${detail}</span></div></div>${continueButton}</div>`;
+    layer.classList.add('visible');
+    layer.querySelector<HTMLButtonElement>('.feedback-continue')?.addEventListener('click', continueAfterFeedback);
+    updateHud();
+    return;
   }
   game.balloons.forEach((balloon) => {
     balloon.element.disabled = true;
@@ -443,6 +553,7 @@ function endGame(): void {
   if (!game) return;
   const summary: GameSummary = {
     id: crypto.randomUUID(),
+    mode: game.mode,
     playerName: game.playerName,
     score: game.score,
     correct: game.correct,
@@ -461,46 +572,54 @@ function endGame(): void {
 function renderSummary(): void {
   if (!lastSummary) return renderHome(false);
   screen = 'summary';
-  const rank = data.highScores.findIndex((entry) => entry.id === lastSummary!.id) + 1;
+  const rank = data.highScores.filter((entry) => entry.mode === lastSummary!.mode).findIndex((entry) => entry.id === lastSummary!.id) + 1;
   root.innerHTML = shell(`
     <div class="summary-screen screen">
       <div class="top-tools">${soundButton()}</div>
       <div class="summary-content">
         ${nubi('nubi-summary')}
-        <span class="eyebrow">PARTIDA TERMINADA</span>
+        <span class="eyebrow">${GAME_MODES[lastSummary.mode].toUpperCase()} · PARTIDA TERMINADA</span>
         <h1>¡Buen vuelo,<br />${escapeHtml(lastSummary.playerName)}!</h1>
         <div class="result-card"><span>CONSEGUISTE</span><strong>${lastSummary.score}</strong><span>PUNTOS</span></div>
         ${rank ? `<div class="rank-message">🏆 ¡Puesto ${rank} en el top 10!</div>` : ''}
         <div class="summary-stats"><span>🎯 ${lastSummary.correct} aciertos</span><span>💫 ${lastSummary.mistakes} fallos</span></div>
         <button class="primary-button" id="play-again" type="button">Jugar otra vez <span aria-hidden="true">➜</span></button>
         <button class="secondary-button" id="summary-scores" type="button">🏆 Ver puntuaciones</button>
-        <button class="text-button" id="summary-home" type="button">Cambiar tablas o dificultad</button>
+        <button class="text-button" id="summary-home" type="button">Cambiar modo, tablas o dificultad</button>
       </div>
     </div>
   `, 'summary-shell');
   wireSoundButton();
   root.querySelector<HTMLButtonElement>('#play-again')!.addEventListener('click', () => { unlockAudio(); startGame(); });
-  root.querySelector<HTMLButtonElement>('#summary-scores')!.addEventListener('click', () => { scoresReturn = 'summary'; renderScores(); });
+  root.querySelector<HTMLButtonElement>('#summary-scores')!.addEventListener('click', () => { scoresReturn = 'summary'; scoresMode = lastSummary!.mode; renderScores(); });
   root.querySelector<HTMLButtonElement>('#summary-home')!.addEventListener('click', () => renderHome(false));
 }
 
 function renderScores(): void {
   screen = 'scores';
-  const rows = data.highScores.length
-    ? data.highScores.map((entry, index) => `<li class="score-row"><span class="rank-number">${index + 1}</span><div class="score-person"><strong>${escapeHtml(entry.playerName)}</strong><small>${DIFFICULTIES[entry.difficulty].label} · Tablas ${entry.tables.join(', ')}</small></div><span class="score-number">${entry.score}</span></li>`).join('')
+  const scores = data.highScores.filter((entry) => entry.mode === scoresMode);
+  const rows = scores.length
+    ? scores.map((entry, index) => `<li class="score-row"><span class="rank-number">${index + 1}</span><div class="score-person"><strong>${escapeHtml(entry.playerName)}</strong><small>${DIFFICULTIES[entry.difficulty].label} · Tablas ${entry.tables.join(', ')}</small></div><span class="score-number">${entry.score}</span></li>`).join('')
     : `<li class="empty-scores">${nubi('nubi-empty')}<strong>¡Aún no hay puntuaciones!</strong><span>Juega una partida y estrena el marcador.</span></li>`;
   root.innerHTML = shell(`
     <div class="scores-screen screen">
       <div class="scores-header"><button class="icon-button back-button" id="back-scores" type="button" aria-label="Volver">←</button><span>EL SALÓN DE LA FAMA</span>${soundButton()}</div>
       <h1>🏆 Los 10 mejores</h1>
+      <div class="scores-tabs" role="group" aria-label="Clasificación por modo">${(Object.keys(GAME_MODES) as GameMode[]).map((mode) => `<button class="score-tab ${scoresMode === mode ? 'selected' : ''}" type="button" data-score-mode="${mode}" aria-pressed="${scoresMode === mode}">${GAME_MODES[mode]}</button>`).join('')}</div>
       <ol class="scores-list">${rows}</ol>
       <p class="scores-note">Las puntuaciones se guardan en este navegador.</p>
-      <button class="primary-button scores-play" id="scores-play" type="button">¡A jugar!</button>
+      <button class="primary-button scores-play" id="scores-play" type="button">Jugar a ${GAME_MODES[scoresMode]}</button>
     </div>
   `, 'scores-shell');
   wireSoundButton();
   root.querySelector<HTMLButtonElement>('#back-scores')!.addEventListener('click', () => scoresReturn === 'summary' ? renderSummary() : renderHome(false));
-  root.querySelector<HTMLButtonElement>('#scores-play')!.addEventListener('click', () => data.playerName ? startGame() : renderHome(true));
+  root.querySelectorAll<HTMLButtonElement>('[data-score-mode]').forEach((button) => button.addEventListener('click', () => { scoresMode = button.dataset.scoreMode as GameMode; playTap(); renderScores(); }));
+  root.querySelector<HTMLButtonElement>('#scores-play')!.addEventListener('click', () => {
+    data.selectedMode = scoresMode;
+    persist();
+    if (data.playerName && data.selectedTables.length) { unlockAudio(); startGame(); }
+    else renderHome(!data.playerName);
+  });
 }
 
 function isPaused(): boolean {
@@ -643,7 +762,11 @@ function frame(timestamp: number): void {
   if (game && screen === 'game' && !isPaused()) {
     if (game.phase === 'active') {
       game.elapsed += dt;
-      positionBalloons();
+      if (game.mode === 'review') positionBalloons();
+      else {
+        updateTimer();
+        if (game.elapsed >= game.roundDuration) finishRound('timeout');
+      }
     } else if (!game.requiresContinue) {
       game.feedbackLeft -= dt;
       if (game.feedbackLeft <= 0) {
@@ -655,6 +778,14 @@ function frame(timestamp: number): void {
   drawConfetti(dt);
   requestAnimationFrame(frame);
 }
+
+document.addEventListener('keydown', (event) => {
+  if (!game || game.mode !== 'calculate' || screen !== 'game' || game.phase !== 'active' || isPaused()) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+  if (/^[0-9]$/.test(event.key)) { event.preventDefault(); enterDigit(event.key); }
+  else if (event.key === 'Backspace' || event.key === 'Escape') { event.preventDefault(); clearAnswer(); }
+  else if (event.key === 'Enter') { event.preventDefault(); validateAnswer(); }
+});
 
 orientationQuery.addEventListener('change', updateOrientation);
 coarsePointerQuery.addEventListener('change', updateOrientation);

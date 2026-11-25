@@ -182,6 +182,7 @@ function renderHome(editName = !data.playerName): void {
         <h1>¡Multiplica<br /><em>y vuela!</em></h1>
         <div class="hero-mascot">${nubi('nubi-hero')}<span class="speech-bubble">¡Vamos a jugar!</span></div>
       </div>
+      <button class="secondary-button tables-link" id="show-tables" type="button">📖 Ver las tablas</button>
       <section class="setup-card" aria-label="Preparar partida">
         ${nameBlock}
         <div class="setting-block">
@@ -207,7 +208,6 @@ function renderHome(editName = !data.playerName): void {
         </div>
         <button class="primary-button start-button" id="start-game" type="button">¡A volar! <span aria-hidden="true">➜</span></button>
       </section>
-      <button class="secondary-button tables-link" id="show-tables" type="button">📖 Ver las tablas</button>
       <button class="secondary-button leaderboard-link" id="show-scores" type="button">🏆 Ver mejores puntuaciones</button>
       <p class="home-note" id="home-note">${data.selectedMode === 'review' ? '5 vidas · 3 globos · ¡muchas multiplicaciones!' : '5 vidas · escribe el resultado antes de que se acabe el tiempo'}</p>
     </div>
@@ -309,11 +309,11 @@ function renderTablesOverview(): void {
     <div class="tables-screen screen">
       <div class="tables-header"><button class="icon-button" id="tables-home" type="button" aria-label="Volver al inicio">←</button><span>REPASA A TU RITMO</span></div>
       <h1 tabindex="-1">Las tablas</h1>
-      <p class="tables-intro">Mira los resultados y elige una tabla para verla completa.</p>
+      <p class="tables-intro">Mira cada multiplicación y elige una tabla para verla completa.</p>
       <div class="tables-overview">
         ${TABLES.map((table) => `<button class="tables-card" type="button" data-view-table="${table}">
           <span class="tables-card-title">Tabla del ${table}</span>
-          <span class="tables-card-results">${Array.from({ length: 10 }, (_, index) => `<span>${table * (index + 1)}</span>`).join('')}</span>
+          <span class="tables-card-results">${Array.from({ length: 10 }, (_, index) => `<span class="tables-result"><small>×${index + 1}</small><span>=</span><strong>${table * (index + 1)}</strong></span>`).join('')}</span>
         </button>`).join('')}
       </div>
     </div>
@@ -329,6 +329,8 @@ function renderTablesOverview(): void {
 
 function renderTableDetail(table: number): void {
   if (!TABLES.includes(table as typeof TABLES[number])) return;
+  const previous = table > TABLES[0] ? table - 1 : null;
+  const next = table < TABLES[TABLES.length - 1] ? table + 1 : null;
   screen = 'tables';
   root.innerHTML = shell(`
     <div class="tables-screen screen">
@@ -337,6 +339,10 @@ function renderTableDetail(table: number): void {
       <ol class="table-facts" aria-label="Multiplicaciones de la tabla del ${table}">
         ${Array.from({ length: 10 }, (_, index) => `<li><span>${table} × ${index + 1}</span><strong>= ${table * (index + 1)}</strong></li>`).join('')}
       </ol>
+      <nav class="table-navigation" aria-label="Cambiar de tabla">
+        <button class="secondary-button" id="table-previous" type="button" ${previous === null ? 'disabled' : ''}>${previous === null ? '← Anterior' : `← Tabla del ${previous}`}</button>
+        <button class="secondary-button" id="table-next" type="button" ${next === null ? 'disabled' : ''}>${next === null ? 'Siguiente →' : `Tabla del ${next} →`}</button>
+      </nav>
       <button class="secondary-button tables-back" id="tables-back" type="button">Ver todas las tablas</button>
     </div>
   `, 'tables-shell');
@@ -346,6 +352,8 @@ function renderTableDetail(table: number): void {
   };
   root.querySelector<HTMLButtonElement>('#tables-overview')!.addEventListener('click', back);
   root.querySelector<HTMLButtonElement>('#tables-back')!.addEventListener('click', back);
+  if (previous !== null) root.querySelector<HTMLButtonElement>('#table-previous')!.addEventListener('click', () => renderTableDetail(previous));
+  if (next !== null) root.querySelector<HTMLButtonElement>('#table-next')!.addEventListener('click', () => renderTableDetail(next));
   updateOrientation();
   root.querySelector<HTMLElement>('h1')!.focus();
 }

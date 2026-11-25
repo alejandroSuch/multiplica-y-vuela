@@ -19,9 +19,13 @@
 html, body { margin: 0; min-width: 300px; min-height: 100%; }
 body { display: grid; place-items: center; }
 button, input { font: inherit; }
-button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button { cursor: pointer; touch-action: manipulation; }
 button:disabled { cursor: default; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 4px solid #356cae; outline-offset: 3px; }
+@media (hover: none) and (pointer: coarse) {
+  button, a { -webkit-tap-highlight-color: transparent; }
+  button:focus-visible, a:focus-visible { outline: none; }
+}
 [hidden] { display: none !important; }
 
 #app { width: 100%; min-height: 100dvh; display: grid; place-items: center; }

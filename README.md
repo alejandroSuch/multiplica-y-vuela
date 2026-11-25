@@ -39,4 +39,4 @@ El despliegue a GitHub Pages se realiza automáticamente al actualizar la rama `
 - Ilustraciones de escenario y Nubi: creadas para este proyecto en SVG.
 - Fuente [Fredoka](https://github.com/google/fonts/tree/main/ofl/fredoka), bajo SIL Open Font License. Se incluye su licencia en `src/assets/OFL-Fredoka.txt`.
 - Aplausos: extracto de 1,5 segundos de [Sound Effects - Applause after a concert](https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg), obra de Amada44 publicada bajo CC0 1.0. Se almacena una copia comprimida local para el juego.
-- Los efectos de estallido y botones se generan con Web Audio.
+- El efecto de estallido se genera localmente y se guarda como MP3; se reproduce igual que los aplausos. Los botones usan Web Audio.

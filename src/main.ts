@@ -68,6 +68,9 @@ let orientationDismissed = false;
 let lastFrame = 0;
 let particles: Particle[] = [];
 let audioContext: AudioContext | null = null;
+const pop = new Audio(`${import.meta.env.BASE_URL}audio/pop.mp3`);
+pop.preload = 'auto';
+pop.volume = 0.8;
 const applause = new Audio(`${import.meta.env.BASE_URL}audio/applause.mp3`);
 applause.preload = 'auto';
 applause.volume = 0.55;
@@ -153,8 +156,10 @@ function wireSoundButton(): void {
     button.textContent = data.muted ? '🔇' : '🔊';
     button.setAttribute('aria-label', data.muted ? 'Activar sonido' : 'Silenciar sonido');
     button.title = data.muted ? 'Activar sonido' : 'Silenciar sonido';
-    if (data.muted) applause.pause();
-    else playTap();
+    if (data.muted) {
+      pop.pause();
+      applause.pause();
+    } else playTap();
   });
 }
 
@@ -658,7 +663,10 @@ function updateOrientation(): void {
   landscape = shouldAskToRotate({ ...signals, dismissed: orientationDismissed });
   orientationOverlay.classList.toggle('is-visible', landscape);
   lastFrame = 0;
-  if (landscape) applause.pause();
+  if (landscape) {
+    pop.pause();
+    applause.pause();
+  }
   if (!landscape) positionBalloons();
 }
 
@@ -744,19 +752,9 @@ function playTap(): void {
 function playPop(): void {
   if (data.muted) return;
   try {
-    unlockAudio();
-    const context = audioContext!;
-    const length = Math.floor(context.sampleRate * 0.15);
-    const buffer = context.createBuffer(1, length, context.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let index = 0; index < length; index += 1) samples[index] = (Math.random() * 2 - 1) * (1 - index / length);
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    const gain = context.createGain();
-    gain.gain.setValueAtTime(0.4, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.15);
-    source.connect(gain).connect(context.destination);
-    source.start();
+    pop.pause();
+    pop.currentTime = 0;
+    void pop.play().catch(() => { /* Browser audio policy may block playback. */ });
   } catch { /* Audio is optional; gameplay continues. */ }
 }
 
@@ -815,7 +813,10 @@ document.querySelector<HTMLButtonElement>('#orientation-dismiss')!.addEventListe
 });
 document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
-  if (document.hidden) applause.pause();
+  if (document.hidden) {
+    pop.pause();
+    applause.pause();
+  }
 });
 window.addEventListener('resize', () => { resizeCanvas(); updateOrientation(); });
 resizeCanvas();

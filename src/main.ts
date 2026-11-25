@@ -568,17 +568,17 @@ function chooseBalloon(balloon: Balloon): void {
 function finishRound(kind: FeedbackKind, chosen?: Balloon): void {
   if (!game || game.phase !== 'active' || !game.question) return;
   game.phase = 'feedback';
-  game.feedbackLeft = 1.65;
+  game.feedbackLeft = kind === 'correct' ? 2.2 : 1.65;
   game.requiresContinue = kind !== 'correct';
   const question = game.question;
   let message: string;
-  let detail: string;
+  let points = '';
   if (kind === 'correct') {
     const gained = pointsForCorrect(game.difficulty, game.correct);
     game.score += gained;
     game.correct += 1;
     message = '¡Muy bien!';
-    detail = `+${gained} puntos`;
+    points = `+${gained} puntos`;
     chosen?.element.classList.add('burst-correct');
     if (chosen) burstConfetti(chosen.element);
     else if (game.mode === 'calculate') burstConfetti(root.querySelector<HTMLElement>('#answer-display')!);
@@ -587,19 +587,19 @@ function finishRound(kind: FeedbackKind, chosen?: Balloon): void {
     game.lives -= 1;
     game.mistakes += 1;
     message = kind === 'wrong' ? '¡Casi lo tienes!' : kind === 'timeout' ? '¡Se acabó el tiempo!' : '¡Se escaparon!';
-    detail = `${question.table} × ${question.multiplier} = ${question.answer}`;
     if (chosen) {
       chosen.element.classList.add('burst-wrong');
       playPop();
     } else playPop();
   }
+  const feedback = (continueButton: string) => `<div class="feedback-card ${kind}"><div class="feedback-main">${nubi('nubi-feedback')}<div class="feedback-copy"><strong>${message}</strong><span class="feedback-equation">${question.table} × ${question.multiplier} = ${question.answer}</span>${points ? `<span class="feedback-points">${points}</span>` : ''}</div></div>${continueButton}</div>`;
   if (game.mode === 'calculate') {
     root.querySelector<HTMLButtonElement>('#validate-answer')!.disabled = true;
     root.querySelector<HTMLButtonElement>('#clear-answer')!.disabled = true;
     const layer = root.querySelector<HTMLElement>('#calculate-feedback')!;
     const continueButton = game.requiresContinue
       ? `<button class="secondary-button feedback-continue" type="button">${game.lives <= 0 ? 'Ver resultado' : 'Vale, seguir'}</button>` : '';
-    layer.innerHTML = `<div class="feedback-card ${kind}"><div class="feedback-main">${nubi('nubi-feedback')}<div class="feedback-copy"><strong>${message}</strong><span>${detail}</span></div></div>${continueButton}</div>`;
+    layer.innerHTML = feedback(continueButton);
     layer.classList.add('visible');
     layer.querySelector<HTMLButtonElement>('.feedback-continue')?.addEventListener('click', continueAfterFeedback);
     updateHud();
@@ -614,7 +614,7 @@ function finishRound(kind: FeedbackKind, chosen?: Balloon): void {
   const continueButton = game.requiresContinue
     ? `<button class="secondary-button feedback-continue" type="button">${game.lives <= 0 ? 'Ver resultado' : 'Vale, seguir'}</button>`
     : '';
-  layer.innerHTML = `<div class="feedback-card ${kind}"><div class="feedback-main">${nubi('nubi-feedback')}<div class="feedback-copy"><strong>${message}</strong><span>${detail}</span></div></div>${continueButton}</div>`;
+  layer.innerHTML = feedback(continueButton);
   layer.querySelector<HTMLButtonElement>('.feedback-continue')?.addEventListener('click', continueAfterFeedback);
   root.querySelector<HTMLElement>('#playfield')!.classList.add('show-feedback');
   updateHud();

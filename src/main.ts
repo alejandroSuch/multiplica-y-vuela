@@ -171,7 +171,7 @@ function renderHome(editName = !data.playerName): void {
 
   root.innerHTML = shell(`
     <div class="home-screen screen">
-      <div class="top-tools">${soundButton()}</div>
+      <div class="top-tools"><button class="icon-button info-button" id="show-info" type="button" aria-label="Información sobre el juego" title="Información">i</button>${soundButton()}</div>
       <div class="hero">
         <span class="eyebrow">EL JUEGO DE LAS TABLAS</span>
         <h1>¡Multiplica<br /><em>y vuela!</em></h1>
@@ -205,9 +205,22 @@ function renderHome(editName = !data.playerName): void {
       <button class="secondary-button leaderboard-link" id="show-scores" type="button">🏆 Ver mejores puntuaciones</button>
       <p class="home-note" id="home-note">${data.selectedMode === 'review' ? '5 vidas · 3 globos · ¡muchas multiplicaciones!' : '5 vidas · escribe el resultado antes de que se acabe el tiempo'}</p>
     </div>
+    <dialog class="info-dialog" id="info-dialog" aria-labelledby="info-title">
+      <div class="info-header"><span class="eyebrow">UN POQUITO SOBRE EL JUEGO</span><button class="icon-button info-close" id="close-info" type="button" aria-label="Cerrar información">×</button></div>
+      <h2 id="info-title">¡Multiplica y vuela!</h2>
+      <p>Practica las tablas del 1 al 9 a tu ritmo. En <strong>Repaso</strong>, toca el globo con la respuesta correcta. En <strong>Calcula</strong>, escribe el resultado antes de que se acabe el tiempo. Elige tus tablas y tu dificultad, ¡y a volar!</p>
+      <div class="info-privacy"><strong>🔒 Tu juego, tus datos</strong><p>No usamos cookies ni herramientas de seguimiento. Tu nombre, tus preferencias y tus puntuaciones se guardan solo en este navegador para que puedas seguir jugando y consultar tus resultados. El juego no los envía a terceros ni los utiliza con fines comerciales.</p></div>
+      <div class="info-support"><strong>☕ ¿Te ha gustado?</strong><p>Si te apetece apoyar el juego, puedes invitarme a un café.</p><a class="secondary-button coffee-link" href="https://buymeacoffee.com/alejandrosuch" target="_blank" rel="noopener noreferrer">Invítame a un café ↗</a><small>El enlace abre una página externa.</small></div>
+    </dialog>
   `, 'home-shell');
 
   wireSoundButton();
+  const infoDialog = root.querySelector<HTMLDialogElement>('#info-dialog')!;
+  const infoButton = root.querySelector<HTMLButtonElement>('#show-info')!;
+  infoButton.addEventListener('click', () => { playTap(); infoDialog.showModal(); });
+  root.querySelector<HTMLButtonElement>('#close-info')!.addEventListener('click', () => infoDialog.close());
+  infoDialog.addEventListener('close', () => infoButton.focus());
+  infoDialog.addEventListener('click', (event) => { if (event.target === infoDialog) infoDialog.close(); });
   root.querySelector<HTMLButtonElement>('#change-player')?.addEventListener('click', () => renderHome(true));
   root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((button) => button.addEventListener('click', () => {
     data.selectedMode = button.dataset.mode as GameMode;

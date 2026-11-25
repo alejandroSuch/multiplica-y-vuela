@@ -21,7 +21,7 @@ body { display: grid; place-items: center; }
 button, input { font: inherit; }
 button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:disabled { cursor: default; }
-button:focus-visible, input:focus-visible { outline: 4px solid #356cae; outline-offset: 3px; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 4px solid #356cae; outline-offset: 3px; }
 [hidden] { display: none !important; }
 
 #app { width: 100%; min-height: 100dvh; display: grid; place-items: center; }
@@ -120,7 +120,21 @@ h2 { font-size: clamp(1.05rem, 3vw, 1.35rem); margin-bottom: 10px; }
 
 /* Home */
 .home-screen { display: flex; flex-direction: column; align-items: center; padding: 20px clamp(17px, 4vw, 32px) 28px; }
-.top-tools { width: 100%; display: flex; justify-content: flex-end; min-height: 48px; }
+.top-tools { width: 100%; display: flex; justify-content: space-between; min-height: 48px; }
+.info-button { font-weight: 700; font-style: italic; }
+.info-dialog { width: min(calc(100% - 28px), 520px); max-height: min(680px, calc(100dvh - 32px)); padding: clamp(20px, 5vw, 28px); overflow-y: auto; border: 4px solid #fff; border-radius: 28px; background: #fffbef; color: #233b5a; box-shadow: 0 9px 0 #4a9fb6, 0 18px 45px #235b7770; }
+.info-dialog::backdrop { background: #256e91b8; backdrop-filter: blur(5px); }
+.info-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.info-header .eyebrow { color: #2a7294; font-size: .7rem; }
+.info-close { width: 42px; height: 42px; flex: none; font-size: 1.7rem; }
+.info-dialog h2 { margin: 5px 0 10px; color: #2b6689; font-size: clamp(1.65rem, 6vw, 2.2rem); }
+.info-dialog p { margin: 0; line-height: 1.45; }
+.info-privacy, .info-support { margin-top: 18px; padding: 16px; border-radius: 19px; }
+.info-privacy { background: #def5ee; }
+.info-support { background: #fff0c8; }
+.info-privacy > strong, .info-support > strong { display: block; margin-bottom: 7px; color: #245f75; font-size: 1.14rem; }
+.coffee-link { display: block; margin-top: 13px; text-align: center; text-decoration: none; }
+.info-support small { display: block; margin-top: 10px; color: #6b665d; text-align: center; }
 .hero { position: relative; width: 100%; min-height: 247px; text-align: center; padding-top: 9px; }
 .hero .eyebrow { color: #246c92; text-shadow: 0 1px #fff9; }
 .hero h1 { margin: 6px 0 0; color: #fff; text-shadow: 0 4px 0 #3e85a5, 0 8px 12px #318cac75; font-size: clamp(3.15rem, 10vw, 5.3rem); line-height: .93; font-weight: 700; }

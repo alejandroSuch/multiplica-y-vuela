@@ -6,6 +6,13 @@ Juego web para aprender y practicar las tablas de multiplicar, pensado para niñ
 
 Abre [el juego publicado](https://alejandrosuch.github.io/multiplica-y-vuela/). En la primera visita se abre una ventana para crear el perfil infantil; también puedes cerrarla y consultar las tablas sin perfil. **Otro niño** reutiliza la misma ventana para añadir perfiles. La opción principal, **Aprender mis tablas**, permite elegir tablas del 1 al 10 y propone 12 preguntas iniciales por sesión, sin reloj ni vidas. Las preguntas incluyen entre ocho y diez operaciones distintas y entre dos y cuatro repeticiones. Se reserva espacio para operaciones aún no vistas y se completa la sesión con repasos pendientes y las menos practicadas. Tras un error o una pista, la operación vuelve a aparecer después de al menos otras dos; esos reintentos pueden ampliar la sesión.
 
+## Instalar en el móvil o la tableta
+
+- **iPhone o iPad:** abre el juego en Safari, toca **Compartir** y elige **Añadir a pantalla de inicio**.
+- **Android:** abre el juego en Chrome, toca el menú y elige **Instalar aplicación** o **Añadir a pantalla de inicio**.
+
+Después de abrirlo una vez con conexión, el juego y sus sonidos también funcionan sin conexión. Al volver a abrir la aplicación o recuperar la conexión, se comprueba si hay una versión nueva; cuando está disponible, se descarga y la aplicación se recarga automáticamente. Si la dejas abierta, también se comprueba cada hora. El progreso y las puntuaciones siguen guardados en ese dispositivo.
+
 El progreso se guarda por perfil y por multiplicación. Un acierto de memoria al primer intento programa repasos a partir de 1, 3, 7 y 14 días. La operación se marca como dominada al superar el último repaso. Un error o el uso de una pista deja la operación pendiente para el día siguiente. Al acabar se muestran las operaciones que han avanzado y las que necesitan más práctica.
 
 Los modos de globos **Repaso** y **Calcula** siguen disponibles como juegos opcionales. Elige una o varias tablas del 1 al 10 y una dificultad.

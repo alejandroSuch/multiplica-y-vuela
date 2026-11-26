@@ -1,4 +1,5 @@
 import './style.css';
+import './pwa';
 import nubiUrl from './assets/nubi.svg?url';
 import {
   calculateSeconds, DIFFICULTIES, GAME_MODES, MAX_LIVES, pointsForCorrect, QuestionDeck, roundSeconds, TABLES,

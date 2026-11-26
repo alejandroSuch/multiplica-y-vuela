@@ -5,9 +5,15 @@ import {
   type Difficulty, type GameMode, type GameSummary, type Question,
 } from './game';
 import { loadData, recordGame, saveData, type SavedData } from './storage';
+import { createLearningProfile } from './storage';
 import { shouldAskToRotate } from './orientation';
+import {
+  factsForTables, insertDelayedRetry, learningHint, learningStats, localDay, markNeedsReview,
+  planLearningSession, recordExtraPractice, updateFactProgress,
+  type LearningFact, type LearningProfile,
+} from './learning';
 
-type Screen = 'home' | 'game' | 'scores' | 'summary' | 'tables';
+type Screen = 'home' | 'game' | 'scores' | 'summary' | 'tables' | 'learning' | 'learning-summary';
 type RoundPhase = 'active' | 'feedback';
 type FeedbackKind = 'correct' | 'wrong' | 'escaped' | 'timeout';
 
@@ -42,6 +48,21 @@ interface ActiveGame {
   manualPause: boolean;
 }
 
+interface LearningSession {
+  profileId: string;
+  day: string;
+  queue: LearningFact[];
+  index: number;
+  graded: Set<string>;
+  retryQueued: Set<string>;
+  advanced: Set<string>;
+  mastered: Set<string>;
+  firstTryCorrect: number;
+  needsPractice: Set<string>;
+  hintShown: boolean;
+  phase: 'question' | 'feedback';
+}
+
 interface Particle {
   x: number; y: number; vx: number; vy: number;
   rotation: number; spin: number; age: number; life: number;
@@ -61,6 +82,7 @@ let screen: Screen = 'home';
 let scoresReturn: 'home' | 'summary' = 'home';
 let scoresMode: GameMode = data.selectedMode;
 let game: ActiveGame | null = null;
+let learning: LearningSession | null = null;
 let lastSummary: GameSummary | null = null;
 let storageFailed = false;
 let landscape = false;
@@ -133,6 +155,39 @@ function nubi(className = ''): string {
   return `<img class="nubi ${className}" src="${nubiUrl}" alt="Nubi, la nube sonriente" />`;
 }
 
+function currentProfile(): LearningProfile | null {
+  return data.profiles.find((profile) => profile.id === data.selectedProfileId) ?? null;
+}
+
+function displayDay(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(new Date(year, month - 1, date));
+}
+
+function learningTableButton(table: number, profile: LearningProfile): string {
+  const selected = profile.tables.includes(table);
+  return `<button class="table-chip ${selected ? 'selected' : ''}" type="button" data-learn-table="${table}" aria-pressed="${selected}" aria-label="Aprender tabla del ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}">${table}</button>`;
+}
+
+function learningProgressMarkup(profile: LearningProfile): string {
+  const stats = learningStats(profile);
+  const newCount = stats.total - stats.introduced;
+  const status = !stats.total ? 'Elige al menos una tabla'
+    : stats.due ? `${stats.due} por repasar hoy`
+    : newCount ? `${newCount} por aprender${stats.nextDue ? ` · Próximo repaso: ${displayDay(stats.nextDue)}` : ''}`
+      : stats.nextDue ? `Próximo repaso: ${displayDay(stats.nextDue)}`
+      : stats.mastered === stats.total ? '¡Todas dominadas!' : 'Puedes aprender nuevas operaciones';
+  return `<strong>${stats.mastered} de ${stats.total} operaciones dominadas</strong><span>${status}</span>`;
+}
+
+function updateLearningStartButton(profile: LearningProfile): void {
+  const stats = learningStats(profile);
+  const button = root.querySelector<HTMLButtonElement>('#start-learning');
+  if (!button) return;
+  button.disabled = false;
+  button.innerHTML = `${stats.total > 0 && stats.mastered === stats.total ? 'Practicar mis tablas' : 'Aprender mis tablas'} <span aria-hidden="true">➜</span>`;
+}
+
 function selectedTablesText(): string {
   if (data.selectedTables.length === 0) return 'Ninguna tabla seleccionada';
   if (data.selectedTables.length === TABLES.length) return 'Todas las tablas seleccionadas';
@@ -163,28 +218,38 @@ function wireSoundButton(): void {
   });
 }
 
-function renderHome(editName = !data.playerName): void {
+function renderHome(showProfileOnOpen = false): void {
   screen = 'home';
   game = null;
-  const nameBlock = editName
-    ? `<form class="name-form" id="name-form">
-        <label for="player-name">¿Cómo te llamas?</label>
-        <div class="name-row"><input id="player-name" name="name" type="text" maxlength="20" autocomplete="nickname" enterkeyhint="done" placeholder="Escribe tu nombre" value="${escapeHtml(data.playerName)}" required /><button class="small-button" type="submit">Guardar</button></div>
-        <p class="form-error" id="name-error" aria-live="polite"></p>
-      </form>`
-    : `<div class="welcome-player"><span>¡Hola, <strong>${escapeHtml(data.playerName)}</strong>!</span><button class="text-button" id="change-player" type="button">Cambiar nombre</button></div>`;
+  learning = null;
+  const profile = currentProfile();
+  const profileBlock = profile ? `<div class="profile-picker">
+      <label for="profile-select">¿Quién va a aprender?</label>
+      <div class="profile-row"><select id="profile-select">
+        ${data.profiles.map((entry) => `<option value="${escapeHtml(entry.id)}" ${entry.id === data.selectedProfileId ? 'selected' : ''}>${escapeHtml(entry.name)}</option>`).join('')}
+      </select><button class="small-button" id="add-profile" type="button">Otro niño</button></div>
+    </div>` : '<p class="profile-welcome">Crea tu perfil para guardar lo que aprendas.</p>';
 
   root.innerHTML = shell(`
     <div class="home-screen screen">
-      <div class="top-tools"><button class="icon-button info-button" id="show-info" type="button" aria-label="Información sobre el juego" title="Información">i</button>${soundButton()}</div>
+      <div class="top-tools"><button class="icon-button info-button" id="show-info" type="button" aria-label="Información para familias" title="Información para familias">i</button>${soundButton()}</div>
       <div class="hero">
         <span class="eyebrow">EL JUEGO DE LAS TABLAS</span>
         <h1>¡Multiplica<br /><em>y vuela!</em></h1>
         <div class="hero-mascot">${nubi('nubi-hero')}<span class="speech-bubble">¡Vamos a jugar!</span></div>
       </div>
-      <button class="secondary-button tables-link" id="show-tables" type="button">📖 Ver las tablas</button>
-      <section class="setup-card" aria-label="Preparar partida">
-        ${nameBlock}
+      <section class="learning-card" aria-label="Aprender las tablas">
+        <span class="eyebrow">TU RUTA DE APRENDIZAJE</span>
+        <h2>Aprender mis tablas</h2>
+        <p>12 preguntas iniciales: 8–10 multiplicaciones distintas y 2–4 repeticiones. Sin reloj ni vidas.</p>
+        ${profileBlock}
+        ${profile ? `<div class="learning-tables"><h3>Tablas que quiero aprender</h3><div class="table-grid" role="group" aria-label="Tablas de aprendizaje">${TABLES.map((table) => learningTableButton(table, profile)).join('')}</div><p class="selection-error" id="learning-tables-error" aria-live="polite"></p></div>
+          <div class="learning-progress">${learningProgressMarkup(profile)}</div>` : ''}
+        <button class="primary-button" id="start-learning" type="button">${profile ? 'Aprender mis tablas' : 'Crear mi perfil'} <span aria-hidden="true">➜</span></button>
+      </section>
+      <button class="secondary-button tables-link" id="show-tables" type="button">📖 Consulta las tablas a tu ritmo</button>
+      <section class="setup-card" aria-label="Juegos de globos">
+        <h2>Juegos de globos</h2>
         <div class="setting-block">
           <h2>Elige el modo</h2>
           <div class="mode-grid" role="group" aria-label="Modo de juego">
@@ -193,7 +258,7 @@ function renderHome(editName = !data.playerName): void {
           </div>
         </div>
         <div class="setting-block">
-          <div class="setting-heading"><h2>Elige tus tablas</h2><span>Del 1 al 9</span></div>
+          <div class="setting-heading"><h2>Elige tus tablas</h2><span>Del 1 al 10</span></div>
           <div class="table-grid" role="group" aria-label="Tablas de multiplicar">
             ${TABLES.map(tableButton).join('')}
           </div>
@@ -211,23 +276,61 @@ function renderHome(editName = !data.playerName): void {
       <button class="secondary-button leaderboard-link" id="show-scores" type="button">🏆 Ver mejores puntuaciones</button>
       <p class="home-note" id="home-note">${data.selectedMode === 'review' ? '5 vidas · 3 globos · ¡muchas multiplicaciones!' : '5 vidas · escribe el resultado antes de que se acabe el tiempo'}</p>
     </div>
+    <dialog class="profile-dialog" id="profile-dialog" aria-labelledby="profile-title">
+      <div class="info-header"><span class="eyebrow">¡EMPEZAMOS!</span><button class="icon-button info-close" id="close-profile" type="button" aria-label="Cerrar">×</button></div>
+      ${nubi('nubi-profile')}
+      <h2 id="profile-title">¿Cómo te llamas?</h2>
+      <p>Guardaré tus avances en este navegador para proponerte los próximos repasos.</p>
+      <form class="name-form" id="name-form">
+        <label for="player-name">Tu nombre</label>
+        <input id="player-name" name="name" type="text" maxlength="20" autocomplete="nickname" enterkeyhint="done" placeholder="Escribe tu nombre" required />
+        <p class="form-error" id="name-error" aria-live="polite"></p>
+        <button class="primary-button" type="submit">Crear perfil</button>
+      </form>
+      <button class="text-button profile-later" id="profile-later" type="button">Ahora no</button>
+    </dialog>
     <dialog class="info-dialog" id="info-dialog" aria-labelledby="info-title">
-      <div class="info-header"><span class="eyebrow">UN POQUITO SOBRE EL JUEGO</span><button class="icon-button info-close" id="close-info" type="button" aria-label="Cerrar información">×</button></div>
-      <h2 id="info-title">¡Multiplica y vuela!</h2>
-      <p>En <strong>Ver las tablas</strong> puedes leer todas las multiplicaciones con calma y sin jugar. Si quieres jugar, en <strong>Repaso</strong> toca el globo con la respuesta correcta; en <strong>Calcula</strong>, escribe el resultado antes de que se acabe el tiempo.</p>
-      <div class="info-privacy"><strong>🔒 Tu juego, tus datos</strong><p>No usamos cookies ni herramientas de seguimiento. Tu nombre, tus preferencias y tus puntuaciones se guardan solo en este navegador para que puedas seguir jugando y consultar tus resultados. El juego no los envía a terceros ni los utiliza con fines comerciales.</p></div>
-      <div class="info-support"><strong>☕ ¿Te ha gustado?</strong><p>Si te apetece apoyar el juego, puedes invitarme a un café.</p><a class="secondary-button coffee-link" href="https://buymeacoffee.com/alejandrosuch" target="_blank" rel="noopener noreferrer">Invítame a un café ↗</a><small>El enlace abre una página externa.</small></div>
+      <div class="info-header"><span class="eyebrow">PARA MADRES, PADRES Y PERSONAS CUIDADORAS</span><button class="icon-button info-close" id="close-info" type="button" aria-label="Cerrar información">×</button></div>
+      <h2 id="info-title">Cómo ayuda a aprender</h2>
+      <p><strong>Aprender mis tablas</strong> propone 12 preguntas iniciales sin reloj ni vidas: entre ocho y diez operaciones distintas y entre dos y cuatro repeticiones. Se reserva espacio para operaciones aún no vistas y se completa la sesión con repasos pendientes y las menos practicadas. Escribe la respuesta de memoria. Si te equivocas o pides ayuda, verás cómo resolverla y volverá a aparecer después de otras preguntas. Los aciertos programan repasos a partir de 1, 3, 7 y 14 días antes de marcar cada operación como dominada.</p>
+      <p class="info-modes">En <strong>Consulta las tablas a tu ritmo</strong> puedes leer las multiplicaciones sin jugar. En los juegos de globos, <strong>Repaso</strong> consiste en tocar la respuesta correcta y <strong>Calcula</strong> en escribirla antes de que acabe el tiempo. Los puntos de esos juegos son independientes del progreso de aprendizaje.</p>
+      <div class="info-evidence"><strong>📚 Por qué practicamos así</strong><p>Un <a href="https://doi.org/10.1002/acp.4141" target="_blank" rel="noopener noreferrer">estudio con escolares sobre tablas (2023)</a> encontró mejores resultados al intentar recordar la respuesta que al recitarla de nuevo. Una <a href="https://doi.org/10.1007/s10648-025-10035-1" target="_blank" rel="noopener noreferrer">revisión de estudios de matemáticas (2025)</a> respalda espaciar la práctica entre sesiones; sus resultados generales sobre recuperación activa son menos concluyentes. Los intervalos concretos de este juego son una decisión de diseño, no una pauta extraída de esos estudios.</p></div>
+      <div class="info-privacy"><strong>🔒 Tu juego, tus datos</strong><p>Los perfiles, las operaciones aprendidas, las preferencias y las puntuaciones se guardan solo en este navegador. No usamos cookies ni herramientas de seguimiento; el juego no envía esos datos a terceros. Si cambias de dispositivo o borras los datos del navegador, el progreso no estará disponible allí.</p></div>
+      <div class="info-support"><strong>☕ Para personas adultas</strong><p>Si quieres apoyar el desarrollo del juego, puedes invitar al creador a un café.</p><a class="secondary-button coffee-link" href="https://buymeacoffee.com/alejandrosuch" target="_blank" rel="noopener noreferrer">Apoyar el proyecto ↗</a><small>Esta opción es para adultos y abre una página externa.</small></div>
     </dialog>
   `, 'home-shell');
 
   wireSoundButton();
+  if (profile) updateLearningStartButton(profile);
+  const profileDialog = root.querySelector<HTMLDialogElement>('#profile-dialog')!;
+  let profileReturnFocus: HTMLElement | null = null;
+  const openProfileDialog = () => {
+    profileReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    root.querySelector<HTMLInputElement>('#player-name')!.value = '';
+    root.querySelector<HTMLElement>('#name-error')!.textContent = '';
+    profileDialog.showModal();
+    root.querySelector<HTMLInputElement>('#player-name')!.focus();
+  };
+  root.querySelector<HTMLButtonElement>('#close-profile')!.addEventListener('click', () => profileDialog.close());
+  root.querySelector<HTMLButtonElement>('#profile-later')!.addEventListener('click', () => profileDialog.close());
+  profileDialog.addEventListener('close', () => {
+    if (profileReturnFocus?.isConnected) profileReturnFocus.focus();
+    else root.querySelector<HTMLButtonElement>('#start-learning')?.focus();
+  });
+  profileDialog.addEventListener('click', (event) => { if (event.target === profileDialog) profileDialog.close(); });
   const infoDialog = root.querySelector<HTMLDialogElement>('#info-dialog')!;
   const infoButton = root.querySelector<HTMLButtonElement>('#show-info')!;
   infoButton.addEventListener('click', () => { playTap(); infoDialog.showModal(); });
   root.querySelector<HTMLButtonElement>('#close-info')!.addEventListener('click', () => infoDialog.close());
   infoDialog.addEventListener('close', () => infoButton.focus());
   infoDialog.addEventListener('click', (event) => { if (event.target === infoDialog) infoDialog.close(); });
-  root.querySelector<HTMLButtonElement>('#change-player')?.addEventListener('click', () => renderHome(true));
+  root.querySelector<HTMLButtonElement>('#add-profile')?.addEventListener('click', openProfileDialog);
+  root.querySelector<HTMLSelectElement>('#profile-select')?.addEventListener('change', (event) => {
+    data.selectedProfileId = (event.target as HTMLSelectElement).value;
+    data.playerName = currentProfile()?.name ?? '';
+    persist();
+    renderHome(false);
+  });
   root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((button) => button.addEventListener('click', () => {
     data.selectedMode = button.dataset.mode as GameMode;
     root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((choice) => {
@@ -242,19 +345,59 @@ function renderHome(editName = !data.playerName): void {
     persist();
     playTap();
   }));
-  root.querySelector<HTMLFormElement>('#name-form')?.addEventListener('submit', (event) => {
+  root.querySelector<HTMLFormElement>('#name-form')!.addEventListener('submit', (event) => {
     event.preventDefault();
     const input = root.querySelector<HTMLInputElement>('#player-name')!;
     const name = input.value.trim().replace(/\s+/g, ' ').slice(0, 20);
     if (!name) {
-      root.querySelector<HTMLElement>('#name-error')!.textContent = 'Escribe tu nombre para jugar.';
+      root.querySelector<HTMLElement>('#name-error')!.textContent = 'Escribe un nombre para crear el perfil.';
       input.focus();
       return;
     }
+    if (data.profiles.some((entry) => entry.name.toLocaleLowerCase('es') === name.toLocaleLowerCase('es'))) {
+      root.querySelector<HTMLElement>('#name-error')!.textContent = 'Ya existe ese nombre. Elige otro para distinguir los perfiles.';
+      input.focus();
+      return;
+    }
+    const newProfile = createLearningProfile(name);
+    data.profiles.push(newProfile);
+    data.selectedProfileId = newProfile.id;
     data.playerName = name;
     persist();
     playTap();
+    profileDialog.close();
     renderHome(false);
+  });
+
+  root.querySelectorAll<HTMLButtonElement>('[data-learn-table]').forEach((button) => button.addEventListener('click', () => {
+    const active = currentProfile();
+    if (!active) return;
+    const table = Number(button.dataset.learnTable);
+    active.tables = active.tables.includes(table)
+      ? active.tables.filter((value) => value !== table)
+      : [...active.tables, table].sort((a, b) => a - b);
+    const selected = active.tables.includes(table);
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+    button.setAttribute('aria-label', `Aprender tabla del ${table}, ${selected ? 'seleccionada' : 'no seleccionada'}`);
+    root.querySelector<HTMLElement>('.learning-progress')!.innerHTML = learningProgressMarkup(active);
+    updateLearningStartButton(active);
+    root.querySelector<HTMLElement>('#learning-tables-error')!.textContent = '';
+    persist();
+    playTap();
+  }));
+
+  root.querySelector<HTMLButtonElement>('#start-learning')!.addEventListener('click', () => {
+    const active = currentProfile();
+    if (!active) {
+      openProfileDialog();
+      return;
+    }
+    if (!active.tables.length) {
+      root.querySelector<HTMLElement>('#learning-tables-error')!.textContent = 'Elige al menos una tabla.';
+      return;
+    }
+    startLearning();
   });
 
   root.querySelectorAll<HTMLButtonElement>('[data-table]').forEach((button) => button.addEventListener('click', () => {
@@ -283,9 +426,8 @@ function renderHome(editName = !data.playerName): void {
   }));
 
   root.querySelector<HTMLButtonElement>('#start-game')!.addEventListener('click', () => {
-    if (!data.playerName) {
-      root.querySelector<HTMLElement>('#name-error')!.textContent = 'Guarda tu nombre para empezar.';
-      root.querySelector<HTMLInputElement>('#player-name')?.focus();
+    if (!currentProfile()) {
+      openProfileDialog();
       return;
     }
     if (data.selectedTables.length === 0) {
@@ -300,6 +442,7 @@ function renderHome(editName = !data.playerName): void {
   root.querySelector<HTMLButtonElement>('#show-tables')!.addEventListener('click', renderTablesOverview);
   updateOrientation();
   showStorageWarning();
+  if (showProfileOnOpen && !profile) openProfileDialog();
 }
 
 function renderTablesOverview(): void {
@@ -307,9 +450,9 @@ function renderTablesOverview(): void {
   game = null;
   root.innerHTML = shell(`
     <div class="tables-screen screen">
-      <div class="tables-header"><button class="icon-button" id="tables-home" type="button" aria-label="Volver al inicio">←</button><span>REPASA A TU RITMO</span></div>
+      <div class="tables-header"><button class="icon-button" id="tables-home" type="button" aria-label="Volver al inicio">←</button><span>CONSULTA A TU RITMO</span></div>
       <h1 tabindex="-1">Las tablas</h1>
-      <p class="tables-intro">Mira cada multiplicación y elige una tabla para verla completa.</p>
+      <p class="tables-intro">Consulta las multiplicaciones del 1 al 10 y elige una tabla para verla completa.</p>
       <div class="tables-overview">
         ${TABLES.map((table) => `<button class="tables-card" type="button" data-view-table="${table}">
           <span class="tables-card-title">Tabla del ${table}</span>
@@ -319,7 +462,7 @@ function renderTablesOverview(): void {
     </div>
   `, 'tables-shell');
   root.querySelector<HTMLButtonElement>('#tables-home')!.addEventListener('click', () => {
-    renderHome(!data.playerName);
+    renderHome(false);
     root.querySelector<HTMLButtonElement>('#show-tables')!.focus();
   });
   root.querySelectorAll<HTMLButtonElement>('[data-view-table]').forEach((button) => button.addEventListener('click', () => renderTableDetail(Number(button.dataset.viewTable))));
@@ -334,7 +477,7 @@ function renderTableDetail(table: number): void {
   screen = 'tables';
   root.innerHTML = shell(`
     <div class="tables-screen screen">
-      <div class="tables-header"><button class="icon-button" id="tables-overview" type="button" aria-label="Volver a todas las tablas">←</button><span>REPASA A TU RITMO</span></div>
+      <div class="tables-header"><button class="icon-button" id="tables-overview" type="button" aria-label="Volver a todas las tablas">←</button><span>CONSULTA A TU RITMO</span></div>
       <h1 tabindex="-1">Tabla del ${table}</h1>
       <ol class="table-facts" aria-label="Multiplicaciones de la tabla del ${table}">
         ${Array.from({ length: 10 }, (_, index) => `<li><span>${table} × ${index + 1}</span><strong>= ${table * (index + 1)}</strong></li>`).join('')}
@@ -356,6 +499,157 @@ function renderTableDetail(table: number): void {
   if (next !== null) root.querySelector<HTMLButtonElement>('#table-next')!.addEventListener('click', () => renderTableDetail(next));
   updateOrientation();
   root.querySelector<HTMLElement>('h1')!.focus();
+}
+
+function startLearning(): void {
+  const profile = currentProfile();
+  if (!profile) return;
+  const day = localDay();
+  const queue = planLearningSession(profile, day);
+  if (!queue.length) return;
+  learning = {
+    profileId: profile.id, day, queue, index: 0,
+    graded: new Set(), retryQueued: new Set(), advanced: new Set(), mastered: new Set(),
+    firstTryCorrect: 0, needsPractice: new Set(), hintShown: false, phase: 'question',
+  };
+  screen = 'learning';
+  root.innerHTML = shell(`
+    <div class="learning-screen screen">
+      <div class="learning-header"><button class="icon-button" id="leave-learning" type="button" aria-label="Salir al inicio">←</button><span>${escapeHtml(profile.name)}</span>${soundButton()}</div>
+      <div class="learning-session-top"><span class="eyebrow">APRENDE A TU RITMO</span><strong id="learning-count"></strong></div>
+      <div class="learning-question-card"><span>¿Cuánto es?</span><strong id="learning-question"></strong></div>
+      <form id="learning-answer-form" class="learning-answer-form">
+        <label for="learning-answer">Escribe el resultado de memoria</label>
+        <input id="learning-answer" type="text" inputmode="numeric" maxlength="3" autocomplete="off" aria-describedby="learning-error" />
+        <p id="learning-error" class="form-error" aria-live="polite"></p>
+        <button class="primary-button" type="submit">Comprobar</button>
+      </form>
+      <button class="text-button learning-help" id="learning-help" type="button">Necesito una pista</button>
+      <div class="learning-hint" id="learning-hint" hidden></div>
+      <div class="learning-feedback" id="learning-feedback" aria-live="polite" hidden></div>
+      <p class="learning-session-note">Sin reloj ni vidas. Puedes pensar todo el tiempo que necesites.</p>
+    </div>
+  `, 'learning-shell');
+  wireSoundButton();
+  root.querySelector<HTMLButtonElement>('#leave-learning')!.addEventListener('click', () => renderHome(false));
+  root.querySelector<HTMLButtonElement>('#learning-help')!.addEventListener('click', () => {
+    if (!learning || learning.phase !== 'question') return;
+    learning.hintShown = true;
+    root.querySelector<HTMLElement>('#learning-hint')!.textContent = learningHint(learning.queue[learning.index]);
+    root.querySelector<HTMLElement>('#learning-hint')!.hidden = false;
+    root.querySelector<HTMLButtonElement>('#learning-help')!.disabled = true;
+    root.querySelector<HTMLInputElement>('#learning-answer')!.focus();
+  });
+  root.querySelector<HTMLFormElement>('#learning-answer-form')!.addEventListener('submit', (event) => {
+    event.preventDefault();
+    checkLearningAnswer();
+  });
+  renderLearningQuestion();
+  updateOrientation();
+}
+
+function renderLearningQuestion(): void {
+  if (!learning || screen !== 'learning') return;
+  const fact = learning.queue[learning.index];
+  learning.phase = 'question';
+  learning.hintShown = false;
+  root.querySelector<HTMLElement>('#learning-count')!.textContent = `${learning.index + 1} de ${learning.queue.length}`;
+  root.querySelector<HTMLElement>('#learning-question')!.textContent = `${fact.table} × ${fact.multiplier}`;
+  root.querySelector<HTMLInputElement>('#learning-answer')!.value = '';
+  root.querySelector<HTMLElement>('#learning-error')!.textContent = '';
+  root.querySelector<HTMLElement>('#learning-hint')!.hidden = true;
+  root.querySelector<HTMLElement>('#learning-feedback')!.hidden = true;
+  root.querySelector<HTMLFormElement>('#learning-answer-form')!.hidden = false;
+  root.querySelector<HTMLButtonElement>('#learning-help')!.hidden = false;
+  root.querySelector<HTMLButtonElement>('#learning-help')!.disabled = false;
+  root.querySelector<HTMLInputElement>('#learning-answer')!.focus();
+}
+
+function checkLearningAnswer(): void {
+  if (!learning || learning.phase !== 'question') return;
+  const input = root.querySelector<HTMLInputElement>('#learning-answer')!;
+  const entered = input.value.trim();
+  if (!/^(?:0|[1-9]\d{0,2})$/.test(entered)) {
+    root.querySelector<HTMLElement>('#learning-error')!.textContent = 'Escribe un número para comprobarlo.';
+    input.focus();
+    return;
+  }
+  const fact = learning.queue[learning.index];
+  const profile = data.profiles.find((entry) => entry.id === learning!.profileId);
+  if (!profile) return;
+  const correct = Number(entered) === fact.answer;
+  const independent = correct && !learning.hintShown;
+  const firstInSession = !learning.graded.has(fact.key);
+  const previous = profile.facts[fact.key];
+  if (firstInSession) {
+    learning.graded.add(fact.key);
+    if (independent) learning.firstTryCorrect += 1;
+    if (!independent) learning.needsPractice.add(fact.key);
+    const eligible = !previous || (previous.stage < 5 && previous.dueOn <= learning.day);
+    if (eligible || !independent) {
+      profile.facts[fact.key] = updateFactProgress(previous, independent, learning.day);
+      if (eligible && independent) {
+        learning.advanced.add(fact.key);
+        if (profile.facts[fact.key].stage === 5) learning.mastered.add(fact.key);
+      }
+    } else profile.facts[fact.key] = recordExtraPractice(previous);
+  } else if (!independent && previous) {
+    profile.facts[fact.key] = markNeedsReview(previous, learning.day);
+    learning.advanced.delete(fact.key);
+    learning.mastered.delete(fact.key);
+    learning.needsPractice.add(fact.key);
+  }
+  if (!independent && !learning.retryQueued.has(fact.key)) {
+    const alternatives = learning.queue.filter((candidate) => candidate.key !== fact.key);
+    const familiar = factsForTables(profile.tables).filter((candidate) => profile.facts[candidate.key] && candidate.key !== fact.key);
+    insertDelayedRetry(learning.queue, learning.index, fact, alternatives.length ? alternatives : familiar);
+    learning.retryQueued.add(fact.key);
+  }
+  persist();
+  learning.phase = 'feedback';
+  root.querySelector<HTMLFormElement>('#learning-answer-form')!.hidden = true;
+  root.querySelector<HTMLButtonElement>('#learning-help')!.hidden = true;
+  root.querySelector<HTMLElement>('#learning-hint')!.hidden = true;
+  const feedback = root.querySelector<HTMLElement>('#learning-feedback')!;
+  const message = independent ? '¡Bien recordado!' : correct ? 'La pista te ha ayudado. Volverás a intentarlo.' : 'Vamos a verlo juntos. Volverás a intentarlo.';
+  feedback.innerHTML = `<strong>${message}</strong><span class="learning-equation">${fact.table} × ${fact.multiplier} = ${fact.answer}</span>${independent ? '' : `<p>${learningHint(fact)}</p>`}<button class="primary-button" id="learning-next" type="button">${learning.index + 1 >= learning.queue.length ? 'Ver mi progreso' : 'Continuar'}</button>`;
+  feedback.hidden = false;
+  root.querySelector<HTMLButtonElement>('#learning-next')!.addEventListener('click', () => {
+    if (!learning) return;
+    learning.index += 1;
+    if (learning.index >= learning.queue.length) renderLearningSummary();
+    else renderLearningQuestion();
+  });
+  root.querySelector<HTMLButtonElement>('#learning-next')!.focus();
+}
+
+function renderLearningSummary(): void {
+  if (!learning) return renderHome(false);
+  const profile = data.profiles.find((entry) => entry.id === learning!.profileId);
+  if (!profile) return renderHome(false);
+  const stats = learningStats(profile, learning.day);
+  const practiced = [...learning.advanced].map((key) => key.replace('x', ' × ')).join(', ');
+  const retry = [...learning.needsPractice].map((key) => key.replace('x', ' × ')).join(', ');
+  screen = 'learning-summary';
+  root.innerHTML = shell(`
+    <div class="learning-summary-screen screen">
+      ${nubi('nubi-summary')}
+      <span class="eyebrow">SESIÓN TERMINADA</span>
+      <h1 tabindex="-1">¡Buen trabajo, ${escapeHtml(profile.name)}!</h1>
+      <div class="learning-summary-card">
+        <strong>${stats.mastered} de ${stats.total} operaciones dominadas</strong>
+        <p>Hoy avanzaste en ${learning.advanced.size} ${learning.advanced.size === 1 ? 'operación' : 'operaciones'}${learning.mastered.size ? ` y dominaste ${learning.mastered.size}` : ''}.</p>
+        <p>Recordaste ${learning.firstTryCorrect} a la primera, sin pista.</p>
+        ${practiced ? `<p><b>Avanzaron:</b> ${practiced}</p>` : ''}
+        ${retry ? `<p><b>Para seguir practicando:</b> ${retry}</p>` : ''}
+        <p><b>Siguiente paso:</b> ${stats.due ? `quedan ${stats.due} operaciones para repasar hoy.` : stats.introduced < stats.total ? `puedes aprender otras operaciones${stats.nextDue ? ` y repasar las anteriores el ${displayDay(stats.nextDue)}` : ''}.` : stats.nextDue ? `vuelve el ${displayDay(stats.nextDue)}.` : stats.mastered === stats.total ? '¡has dominado todas las tablas elegidas!' : 'elige otras tablas para aprender.'}</p>
+      </div>
+      <button class="primary-button" id="learning-home" type="button">Volver al inicio</button>
+    </div>
+  `, 'learning-shell');
+  root.querySelector<HTMLButtonElement>('#learning-home')!.addEventListener('click', () => renderHome(false));
+  root.querySelector<HTMLElement>('h1')!.focus();
+  learning = null;
 }
 
 function startGame(): void {
@@ -696,7 +990,7 @@ function renderScores(): void {
     data.selectedMode = scoresMode;
     persist();
     if (data.playerName && data.selectedTables.length) { unlockAudio(); startGame(); }
-    else renderHome(!data.playerName);
+    else renderHome(!currentProfile());
   });
 }
 
@@ -881,5 +1175,5 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', () => { resizeCanvas(); updateOrientation(); });
 resizeCanvas();
 updateOrientation();
-renderHome();
+renderHome(true);
 requestAnimationFrame(frame);

@@ -26,7 +26,7 @@ export interface GameSummary {
   completedAt: string;
 }
 
-export const TABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+export const TABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 export const MAX_LIVES = 5;
 export const DIFFICULTIES: Record<Difficulty, { label: string; seconds: number; multiplier: number; emoji: string }> = {
   easy: { label: 'Fácil', seconds: 13, multiplier: 1, emoji: '☁️' },

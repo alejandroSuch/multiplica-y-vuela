@@ -21,6 +21,11 @@ describe('questions', () => {
     expect(second.key).not.toBe(first.key);
   });
 
+  it('includes the tenth table and products up to one hundred', () => {
+    const question = createQuestion([10], null, () => 0.999);
+    expect(question).toMatchObject({ table: 10, multiplier: 10, answer: 100 });
+  });
+
   it('rejects an empty selection', () => {
     expect(() => createQuestion([])).toThrow();
   });
@@ -107,7 +112,7 @@ describe('persistence and leaderboard', () => {
     const legacy = { ...defaultData(), version: 1, highScores: [oldGame], recentGames: [oldGame] };
     const storage = { getItem: (key: string) => key === LEGACY_STORAGE_KEY ? JSON.stringify(legacy) : null };
     const migrated = loadData(storage);
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(3);
     expect(migrated.highScores[0]).toMatchObject({ id: 'old', mode: 'review' });
     expect(migrated.recentGames[0]).toMatchObject({ id: 'old', mode: 'review' });
     expect(migrated.selectedMode).toBe('review');

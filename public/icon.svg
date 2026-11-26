@@ -4,19 +4,20 @@
     <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#83d8ed"/><stop offset="1" stop-color="#b8ecf1"/></linearGradient>
     <linearGradient id="button" x2="0" y2="1"><stop stop-color="#fffdf5"/><stop offset="1" stop-color="#fff3da"/></linearGradient>
     <linearGradient id="cloud" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#def7fb"/></linearGradient>
+    <filter id="cloud-shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#357eaa" flood-opacity=".22"/></filter>
   </defs>
   <path fill="url(#sky)" d="M0 0h512v512H0z"/>
-  <g transform="translate(85 55) scale(1.08)">
+  <g transform="rotate(-8 330 152)">
+    <rect x="270" y="104" width="120" height="120" rx="28" fill="#d8bb7c"/>
+    <rect x="270" y="92" width="120" height="120" rx="28" fill="url(#button)" stroke="#fff" stroke-width="6"/>
+    <path d="m307 129 46 46m0-46-46 46" fill="none" stroke="#2b526f" stroke-width="16" stroke-linecap="square"/>
+  </g>
+  <g transform="translate(73 126) scale(1.5)" filter="url(#cloud-shadow)">
     <path d="M43 164C22 164 5 149 5 130c0-19 13-34 31-36 2-30 25-54 55-54 20 0 36 10 45 24 9-9 20-14 33-14 23 0 40 18 40 41 18 5 28 20 28 39 0 19-16 34-37 34H43Z" fill="url(#cloud)" stroke="#78c7dc" stroke-width="5" stroke-linejoin="round"/>
     <ellipse cx="76" cy="113" rx="7" ry="10" fill="#253c60"/>
     <ellipse cx="152" cy="113" rx="7" ry="10" fill="#253c60"/>
     <ellipse cx="60" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
     <ellipse cx="169" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
     <path d="M99 124c5 14 27 19 39 0" fill="none" stroke="#253c60" stroke-width="5" stroke-linecap="round"/>
-  </g>
-  <g transform="rotate(-8 325 330)">
-    <rect x="245" y="262" width="160" height="160" rx="34" fill="#d8bb7c"/>
-    <rect x="245" y="250" width="160" height="160" rx="34" fill="url(#button)" stroke="#fff" stroke-width="6"/>
-    <path d="m296 301 58 58m0-58-58 58" fill="none" stroke="#2b526f" stroke-width="20" stroke-linecap="square"/>
   </g>
 </svg>

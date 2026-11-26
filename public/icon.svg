@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">Nubi, la nube sonriente</title>
+  <title id="title">Nubi y el símbolo de multiplicación</title>
   <defs>
     <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#83d8ed"/><stop offset="1" stop-color="#b8ecf1"/></linearGradient>
     <linearGradient id="cloud" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#def7fb"/></linearGradient>
@@ -12,8 +12,9 @@
     <ellipse cx="60" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
     <ellipse cx="169" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
     <path d="M99 124c5 14 27 19 39 0" fill="none" stroke="#253c60" stroke-width="5" stroke-linecap="round"/>
-    <path d="m194 35 4-13 5 13 13 4-13 5-5 13-4-13-13-5z" fill="#ffd66d" stroke="#eaaa45" stroke-width="2"/>
     <circle cx="26" cy="37" r="5" fill="#ff9783"/>
     <circle cx="212" cy="167" r="4" fill="#8f7bd7"/>
   </g>
+  <circle cx="370" cy="176" r="42" fill="#f3666e" stroke="#fff" stroke-width="8"/>
+  <path d="m354 160 32 32m0-32-32 32" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
 </svg>

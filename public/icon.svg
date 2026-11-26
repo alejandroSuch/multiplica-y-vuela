@@ -6,15 +6,17 @@
     <linearGradient id="cloud" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#def7fb"/></linearGradient>
   </defs>
   <path fill="url(#sky)" d="M0 0h512v512H0z"/>
-  <rect x="110" y="128" width="292" height="292" rx="64" fill="#d8bb7c"/>
-  <rect x="110" y="108" width="292" height="292" rx="64" fill="url(#button)" stroke="#fff" stroke-width="8"/>
-  <path d="m218 145 76 76m0-76-76 76" fill="none" stroke="#2b526f" stroke-width="25" stroke-linecap="square"/>
-  <g transform="translate(145 212) scale(.95)">
+  <g transform="translate(85 55) scale(1.08)">
     <path d="M43 164C22 164 5 149 5 130c0-19 13-34 31-36 2-30 25-54 55-54 20 0 36 10 45 24 9-9 20-14 33-14 23 0 40 18 40 41 18 5 28 20 28 39 0 19-16 34-37 34H43Z" fill="url(#cloud)" stroke="#78c7dc" stroke-width="5" stroke-linejoin="round"/>
     <ellipse cx="76" cy="113" rx="7" ry="10" fill="#253c60"/>
     <ellipse cx="152" cy="113" rx="7" ry="10" fill="#253c60"/>
     <ellipse cx="60" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
     <ellipse cx="169" cy="128" rx="12" ry="6" fill="#ffb5b5" opacity=".65"/>
     <path d="M99 124c5 14 27 19 39 0" fill="none" stroke="#253c60" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="rotate(-8 325 330)">
+    <rect x="245" y="262" width="160" height="160" rx="34" fill="#d8bb7c"/>
+    <rect x="245" y="250" width="160" height="160" rx="34" fill="url(#button)" stroke="#fff" stroke-width="6"/>
+    <path d="m296 301 58 58m0-58-58 58" fill="none" stroke="#2b526f" stroke-width="20" stroke-linecap="square"/>
   </g>
 </svg>

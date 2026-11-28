@@ -138,7 +138,7 @@ export function markNeedsReview(previous: FactProgress, day: string): FactProgre
 }
 
 export function learningStats(profile: LearningProfile, day = localDay()): {
-  total: number; introduced: number; mastered: number; due: number; nextDue: string | null;
+  total: number; introduced: number; inProgress: number; mastered: number; due: number; nextDue: string | null;
 } {
   const all = factsForTables(profile.tables);
   const progress = all.map((fact) => profile.facts[fact.key]).filter((fact): fact is FactProgress => Boolean(fact));
@@ -146,6 +146,7 @@ export function learningStats(profile: LearningProfile, day = localDay()): {
   return {
     total: all.length,
     introduced: progress.length,
+    inProgress: progress.filter((fact) => fact.stage > 0 && fact.stage < 5).length,
     mastered: progress.filter((fact) => fact.stage === 5).length,
     due: progress.filter((fact) => fact.stage < 5 && fact.dueOn <= day).length,
     nextDue: dates.length ? dates.sort()[0] : null,

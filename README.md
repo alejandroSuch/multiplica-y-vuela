@@ -13,7 +13,7 @@ Abre [el juego publicado](https://alejandrosuch.github.io/multiplica-y-vuela/). 
 
 Después de abrirlo una vez con conexión, el juego y sus sonidos también funcionan sin conexión. Al volver a abrir la aplicación o recuperar la conexión, se comprueba si hay una versión nueva; cuando está disponible, se descarga y la aplicación se recarga automáticamente. Si la dejas abierta, también se comprueba cada hora. El progreso y las puntuaciones siguen guardados en ese dispositivo.
 
-El progreso se guarda por perfil y por multiplicación. Un acierto de memoria al primer intento programa repasos a partir de 1, 3, 7 y 14 días. La operación se marca como dominada al superar el último repaso. Un error o el uso de una pista deja la operación pendiente para el día siguiente. Al acabar se muestran las operaciones que han avanzado y las que necesitan más práctica.
+El progreso se guarda por perfil y por multiplicación. Cinco aciertos de memoria al primer intento y sin pista (uno inicial y cuatro repasos a partir de 1, 3, 7 y 14 días) marcan una operación como dominada. Los aciertos adicionales el mismo día no adelantan el siguiente repaso. Un error o el uso de una pista deja la operación pendiente para el día siguiente. En el inicio se cuentan las operaciones en camino y las dominadas; al acabar se muestran las operaciones que han avanzado, el paso alcanzado por cada una y las que necesitan más práctica.
 
 Los modos de globos **Repaso** y **Calcula** siguen disponibles como juegos opcionales. Elige una o varias tablas del 1 al 10 y una dificultad.
 

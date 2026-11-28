@@ -98,6 +98,15 @@ describe('guided learning', () => {
       .toMatchObject({ stage: 4, dueOn: '2026-11-27' });
   });
 
+  it('counts only unfinished successful progress as in camino', () => {
+    const profile = createLearningProfile('Ana', 'ana');
+    profile.facts['2x1'] = { stage: 0, dueOn: day, attempts: 1, correct: 0 };
+    profile.facts['2x2'] = { stage: 1, dueOn: day, attempts: 1, correct: 1 };
+    profile.facts['2x3'] = { stage: 4, dueOn: day, attempts: 4, correct: 4 };
+    profile.facts['2x4'] = { stage: 5, dueOn: '', attempts: 5, correct: 5 };
+    expect(learningStats(profile, day)).toMatchObject({ total: 10, introduced: 4, inProgress: 2, mastered: 1 });
+  });
+
   it('places a retry after at least two other questions even at the end', () => {
     const [failed, other, third] = factsForTables([2]).slice(0, 3);
     const queue = [failed, failed];
@@ -137,6 +146,7 @@ describe('guided learning', () => {
     expect(loaded.profiles.find((profile) => profile.id === 'ana')?.facts['2x3']?.stage).toBe(1);
     expect(loaded.profiles.find((profile) => profile.id === 'leo')?.facts['2x3']).toBeUndefined();
     expect(learningStats(loaded.profiles[0], day).introduced).toBe(1);
+    expect(learningStats(loaded.profiles[0], day).inProgress).toBe(1);
   });
 
   it('migrates v2 player and scores into v3 without changing the leaderboard', () => {

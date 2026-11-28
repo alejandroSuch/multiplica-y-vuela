@@ -178,7 +178,7 @@ function learningProgressMarkup(profile: LearningProfile): string {
     : newCount ? `${newCount} por aprender${stats.nextDue ? ` · Próximo repaso: ${displayDay(stats.nextDue)}` : ''}`
       : stats.nextDue ? `Próximo repaso: ${displayDay(stats.nextDue)}`
       : stats.mastered === stats.total ? '¡Todas dominadas!' : 'Puedes aprender nuevas operaciones';
-  return `<strong>${stats.mastered} de ${stats.total} operaciones dominadas</strong><span>${status}</span>`;
+  return `<strong>${stats.inProgress} en camino · ${stats.mastered} dominadas</strong><span>De ${stats.total} operaciones · ${status}</span><small>Cada operación se domina tras 5 aciertos a la primera y sin pista, con repasos en días distintos.</small>`;
 }
 
 function updateLearningStartButton(profile: LearningProfile): void {
@@ -293,7 +293,7 @@ function renderHome(showProfileOnOpen = false): void {
     <dialog class="info-dialog" id="info-dialog" aria-labelledby="info-title">
       <div class="info-header"><span class="eyebrow">PARA MADRES, PADRES Y PERSONAS CUIDADORAS</span><button class="icon-button info-close" id="close-info" type="button" aria-label="Cerrar información">×</button></div>
       <h2 id="info-title">Cómo ayuda a aprender</h2>
-      <p><strong>Aprender mis tablas</strong> propone 12 preguntas iniciales sin reloj ni vidas: entre ocho y diez operaciones distintas y entre dos y cuatro repeticiones. Se reserva espacio para operaciones aún no vistas y se completa la sesión con repasos pendientes y las menos practicadas. Escribe la respuesta de memoria. Si te equivocas o pides ayuda, verás cómo resolverla y volverá a aparecer después de otras preguntas. Los aciertos programan repasos a partir de 1, 3, 7 y 14 días antes de marcar cada operación como dominada.</p>
+      <p><strong>Aprender mis tablas</strong> propone 12 preguntas iniciales sin reloj ni vidas: entre ocho y diez operaciones distintas y entre dos y cuatro repeticiones. Se reserva espacio para operaciones aún no vistas y se completa la sesión con repasos pendientes y las menos practicadas. Escribe la respuesta de memoria. Si te equivocas o pides ayuda, verás cómo resolverla y volverá a aparecer después de otras preguntas. Cada operación se domina tras cinco aciertos a la primera y sin pista: uno inicial y cuatro repasos programados al cabo de 1, 3, 7 y 14 días. Acertarla más veces el mismo día no adelanta el siguiente paso.</p>
       <p class="info-modes">En <strong>Consulta las tablas a tu ritmo</strong> puedes leer las multiplicaciones sin jugar. En los juegos de globos, <strong>Repaso</strong> consiste en tocar la respuesta correcta y <strong>Calcula</strong> en escribirla antes de que acabe el tiempo. Los puntos de esos juegos son independientes del progreso de aprendizaje.</p>
       <div class="info-evidence"><strong>📚 Por qué practicamos así</strong><p>Un <a href="https://doi.org/10.1002/acp.4141" target="_blank" rel="noopener noreferrer">estudio con escolares sobre tablas (2023)</a> encontró mejores resultados al intentar recordar la respuesta que al recitarla de nuevo. Una <a href="https://doi.org/10.1007/s10648-025-10035-1" target="_blank" rel="noopener noreferrer">revisión de estudios de matemáticas (2025)</a> respalda espaciar la práctica entre sesiones; sus resultados generales sobre recuperación activa son menos concluyentes. Los intervalos concretos de este juego son una decisión de diseño, no una pauta extraída de esos estudios.</p></div>
       <div class="info-privacy"><strong>🔒 Tu juego, tus datos</strong><p>Los perfiles, las operaciones aprendidas, las preferencias y las puntuaciones se guardan solo en este navegador. No usamos cookies ni herramientas de seguimiento; el juego no envía esos datos a terceros. Si cambias de dispositivo o borras los datos del navegador, el progreso no estará disponible allí.</p></div>
@@ -629,8 +629,12 @@ function renderLearningSummary(): void {
   const profile = data.profiles.find((entry) => entry.id === learning!.profileId);
   if (!profile) return renderHome(false);
   const stats = learningStats(profile, learning.day);
-  const practiced = [...learning.advanced].map((key) => key.replace('x', ' × ')).join(', ');
+  const practiced = [...learning.advanced].map((key) => `${key.replace('x', ' × ')} (${profile.facts[key].stage}/5)`).join(', ');
   const retry = [...learning.needsPractice].map((key) => key.replace('x', ' × ')).join(', ');
+  const progressHeadline = stats.inProgress
+    ? `${stats.inProgress} ${stats.inProgress === 1 ? 'operación en camino' : 'operaciones en camino'}`
+    : stats.mastered ? `${stats.mastered} ${stats.mastered === 1 ? 'operación dominada' : 'operaciones dominadas'}`
+      : 'Sigue practicando';
   screen = 'learning-summary';
   root.innerHTML = shell(`
     <div class="learning-summary-screen screen">
@@ -638,10 +642,12 @@ function renderLearningSummary(): void {
       <span class="eyebrow">SESIÓN TERMINADA</span>
       <h1 tabindex="-1">¡Buen trabajo, ${escapeHtml(profile.name)}!</h1>
       <div class="learning-summary-card">
-        <strong>${stats.mastered} de ${stats.total} operaciones dominadas</strong>
+        <strong>${progressHeadline}</strong>
+        <p class="learning-mastery-count">${stats.mastered} de ${stats.total} dominadas</p>
+        <p class="learning-mastery-explanation">Cada operación tiene 5 pasos: un acierto a la primera y sin pista, seguido de 4 repasos en días distintos. Se domina al completar los 5.</p>
         <p>Hoy avanzaste en ${learning.advanced.size} ${learning.advanced.size === 1 ? 'operación' : 'operaciones'}${learning.mastered.size ? ` y dominaste ${learning.mastered.size}` : ''}.</p>
         <p>Recordaste ${learning.firstTryCorrect} a la primera, sin pista.</p>
-        ${practiced ? `<p><b>Avanzaron:</b> ${practiced}</p>` : ''}
+        ${practiced ? `<p><b>Avanzaron (pasos de 5):</b> ${practiced}</p>` : ''}
         ${retry ? `<p><b>Para seguir practicando:</b> ${retry}</p>` : ''}
         <p><b>Siguiente paso:</b> ${stats.due ? `quedan ${stats.due} operaciones para repasar hoy.` : stats.introduced < stats.total ? `puedes aprender otras operaciones${stats.nextDue ? ` y repasar las anteriores el ${displayDay(stats.nextDue)}` : ''}.` : stats.nextDue ? `vuelve el ${displayDay(stats.nextDue)}.` : stats.mastered === stats.total ? '¡has dominado todas las tablas elegidas!' : 'elige otras tablas para aprender.'}</p>
       </div>
